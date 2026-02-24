@@ -86,6 +86,23 @@ let qrCode = null;
 let waStatus = 'disconnected'; // disconnected, connecting, connected
 let isManualStop = false;
 
+/**
+ * Kill the current WhatsApp socket cleanly.
+ * Removes all event listeners BEFORE ending, to prevent
+ * the old socket's close event from triggering a reconnect.
+ */
+function killSocket() {
+    if (sock) {
+        try {
+            sock.ev.removeAllListeners('connection.update');
+            sock.ev.removeAllListeners('messages.upsert');
+            sock.ev.removeAllListeners('creds.update');
+            sock.end();
+        } catch (e) { }
+        sock = null;
+    }
+}
+
 // --- Web Settings (separate from WhatsApp) ---
 let webGuardEnabled = true;
 let webSessionEnabled = false;
@@ -325,8 +342,8 @@ io.on('connection', (socket) => {
             } catch (e) {
                 console.error('Error during logout:', e);
             }
-            sock = null;
         }
+        killSocket();
 
         // --- Remove session files ---
         const authPath = path.join(__dirname, '../auth_session');
@@ -352,11 +369,7 @@ io.on('connection', (socket) => {
 
     socket.on('wa-stop', () => {
         console.log('Manual stop & reset requested');
-        isManualStop = true;
-        if (sock) {
-            try { sock.end(); } catch (e) { }
-            sock = null;
-        }
+        killSocket();
 
         // Wipe session to ensure next start generates new QR
         const authPath = path.join(__dirname, '../auth_session');
@@ -376,17 +389,12 @@ io.on('connection', (socket) => {
 
         // Trigger fresh start
         console.log('Restarting WhatsApp for fresh login...');
-        isManualStop = false;
         startWhatsApp();
     });
 
     socket.on('wa-clear-session', () => {
         console.log('Clearing WhatsApp session & Restarting...');
-        isManualStop = true;
-        if (sock) {
-            try { sock.end(); } catch (e) { }
-            sock = null;
-        }
+        killSocket();
 
         const authPath = path.join(__dirname, '../auth_session');
         if (fs.existsSync(authPath)) {
@@ -405,7 +413,6 @@ io.on('connection', (socket) => {
 
         // Trigger fresh start
         console.log('Restarting WhatsApp after session clear...');
-        isManualStop = false;
         startWhatsApp();
     });
 
