@@ -85,6 +85,7 @@ let sock = null;
 let qrCode = null;
 let waStatus = 'disconnected'; // disconnected, connecting, connected
 let isManualStop = false;
+let reconnectTimer = null;
 
 /**
  * Kill the current WhatsApp socket cleanly.
@@ -380,26 +381,24 @@ io.on('connection', (socket) => {
     });
 
     socket.on('wa-stop', () => {
-        console.log('Manual stop & reset requested');
+        console.log('Manual stop requested — halting all reconnection');
+        isManualStop = true;
+        if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
         killSocket();
-
-        // Wipe session to ensure next start generates new QR
         clearAuthSession();
 
         waStatus = 'disconnected';
         qrCode = null;
         io.emit('wa-status', { status: waStatus });
         io.emit('wa-qr', { qr: null });
-
-        // Trigger fresh start
-        console.log('Restarting WhatsApp for fresh login...');
-        startWhatsApp();
+        console.log('WhatsApp fully stopped. Click Reconnect to start fresh.');
     });
 
     socket.on('wa-clear-session', () => {
-        console.log('Clearing WhatsApp session & Restarting...');
+        console.log('Clear session requested — wiping and restarting');
+        isManualStop = true;
+        if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
         killSocket();
-
         clearAuthSession();
 
         waStatus = 'disconnected';
@@ -407,8 +406,8 @@ io.on('connection', (socket) => {
         io.emit('wa-status', { status: waStatus });
         io.emit('wa-qr', { qr: null });
 
-        // Trigger fresh start
-        console.log('Restarting WhatsApp after session clear...');
+        // Start fresh to generate new QR
+        console.log('Starting fresh WhatsApp login...');
         startWhatsApp();
     });
 
@@ -576,9 +575,10 @@ async function startWhatsApp() {
             if (shouldReconnect && !isManualStop) {
                 // Delay before reconnect to avoid tight loop
                 console.log('Reconnecting WhatsApp in 3s...');
-                setTimeout(() => {
+                reconnectTimer = setTimeout(() => {
+                    reconnectTimer = null;
                     // Re-check: don't reconnect if another start happened or manual stop
-                    if (sock === currentSock || sock === null) {
+                    if (!isManualStop && (sock === currentSock || sock === null)) {
                         startWhatsApp();
                     }
                 }, 3000);
