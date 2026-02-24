@@ -442,29 +442,50 @@
     <!-- Auth View -->
     <div id="auth-view" class="view">
         <div class="auth-content">
-            <div class="status-info">
-                <span id="wa-status-dot" class="status-dot dot-disconnected"></span>
-                <strong id="wa-status-text">Disconnected</strong>
+
+            <!-- Stage 1: Initialized (no auth / waiting for QR scan) -->
+            <div id="wa-stage-init">
+                <div style="margin-bottom: 1.5rem;">
+                    <div
+                        style="display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); padding: 0.5rem 1.25rem; border-radius: 999px; margin-bottom: 1rem;">
+                        <span id="wa-init-dot" class="status-dot dot-connecting"
+                            style="width: 10px; height: 10px;"></span>
+                        <span id="wa-init-status"
+                            style="font-size: 0.85rem; font-weight: 600; color: var(--warning);">Waiting for QR
+                            Code...</span>
+                    </div>
+                    <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Link WhatsApp</h2>
+                    <p style="opacity: 0.5; font-size: 0.9rem;">Open WhatsApp on your phone → Settings → Linked Devices
+                        → Scan the QR code below</p>
+                </div>
+
+                <div id="qr-container" class="qr-card" style="display: none;">
+                    <canvas id="qr-canvas"></canvas>
+                    <p style="color: #0f172a; font-weight: 600; margin-top: 1rem; font-size: 0.9rem;">Scan with WhatsApp
+                    </p>
+                </div>
+
+                <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem;">
+                    <button id="stop-btn" class="btn-danger" onclick="stopWA()">⏹ Stop</button>
+                    <button id="clear-session-btn" class="btn-outline"
+                        style="border-color: var(--warning); color: var(--warning);" onclick="clearSession()">🔄 Clear &
+                        Refresh QR</button>
+                </div>
             </div>
 
-            <div id="qr-container" class="qr-card" style="display: none;">
-                <canvas id="qr-canvas"></canvas>
-                <p style="color: #0f172a; font-weight: 600; margin-top: 1rem; font-size: 0.9rem;">Scan with WhatsApp</p>
+            <!-- Stage 2: Connected -->
+            <div id="wa-stage-connected" style="display: none;">
+                <div
+                    style="background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 1.5rem; padding: 2.5rem; max-width: 400px; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+                    <h2 style="font-size: 1.5rem; margin-bottom: 0.75rem; color: var(--success);">WhatsApp Linked</h2>
+                    <p style="opacity: 0.5; font-size: 0.9rem; margin-bottom: 2rem;">Your session is active. Messages
+                        are being received and processed.</p>
+                    <button class="btn-danger" onclick="logout()" style="width: 100%; justify-content: center;">Logout &
+                        Unlink</button>
+                </div>
             </div>
 
-            <div id="connected-info" style="display: none; margin-bottom: 2rem;">
-                <h2 style="margin-bottom: 1rem;">✅ WhatsApp Linked</h2>
-                <p style="opacity: 0.6;">Your session is active. You can now receive and send messages.</p>
-            </div>
-
-            <div style="display: flex; gap: 1rem; justify-content: center;">
-                <button id="reconnect-btn" onclick="reconnect()">Reconnect</button>
-                <button id="stop-btn" class="btn-danger" style="display: none;" onclick="stopWA()">Stop</button>
-                <button id="clear-session-btn" class="btn-outline"
-                    style="border-color: var(--danger); color: var(--danger); display: none;"
-                    onclick="clearSession()">Clear Session</button>
-                <button id="logout-btn" class="btn-danger" style="display: none;" onclick="logout()">Logout</button>
-            </div>
         </div>
     </div>
 
@@ -531,15 +552,12 @@
 
         // WhatsApp Elements
         const waHeaderStatus = document.getElementById('wa-header-status');
-        const waStatusDot = document.getElementById('wa-status-dot');
-        const waStatusText = document.getElementById('wa-status-text');
         const qrContainer = document.getElementById('qr-container');
         const qrCanvas = document.getElementById('qr-canvas');
-        const connectedInfo = document.getElementById('connected-info');
-        const logoutBtn = document.getElementById('logout-btn');
-        const stopBtn = document.getElementById('stop-btn');
-        const clearSessionBtn = document.getElementById('clear-session-btn');
-        const reconnectBtn = document.getElementById('reconnect-btn');
+        const stageInit = document.getElementById('wa-stage-init');
+        const stageConnected = document.getElementById('wa-stage-connected');
+        const waInitDot = document.getElementById('wa-init-dot');
+        const waInitStatus = document.getElementById('wa-init-status');
         const authTabBtn = document.getElementById('auth-tab-btn');
 
         // Image upload state
@@ -681,33 +699,28 @@
         });
 
         function updateWAUI(status) {
-            waStatusText.innerText = status.charAt(0).toUpperCase() + status.slice(1);
             waHeaderStatus.innerText = `WhatsApp: ${status}`;
 
-            waStatusDot.className = `status-dot dot-${status}`;
-
             if (status === 'connected') {
-                qrContainer.style.display = 'none';
-                connectedInfo.style.display = 'block';
-                logoutBtn.style.display = 'flex';
-                stopBtn.style.display = 'none';
-                clearSessionBtn.style.display = 'none';
-                reconnectBtn.style.display = 'none';
+                stageInit.style.display = 'none';
+                stageConnected.style.display = 'block';
                 authTabBtn.style.color = 'var(--success)';
-            } else if (status === 'connecting') {
-                connectedInfo.style.display = 'none';
-                logoutBtn.style.display = 'none';
-                stopBtn.style.display = 'flex';
-                clearSessionBtn.style.display = 'flex';
-                reconnectBtn.style.display = 'none';
-                authTabBtn.style.color = 'var(--warning)';
             } else {
-                connectedInfo.style.display = 'none';
-                logoutBtn.style.display = 'none';
-                stopBtn.style.display = 'none';
-                clearSessionBtn.style.display = 'flex';
-                reconnectBtn.style.display = 'flex';
-                authTabBtn.style.color = 'var(--danger)';
+                // Both 'connecting' and 'disconnected' show the init stage
+                stageInit.style.display = 'block';
+                stageConnected.style.display = 'none';
+
+                if (status === 'connecting') {
+                    waInitDot.className = 'status-dot dot-connecting';
+                    waInitStatus.innerText = 'Connecting...';
+                    waInitStatus.style.color = 'var(--warning)';
+                    authTabBtn.style.color = 'var(--warning)';
+                } else {
+                    waInitDot.className = 'status-dot dot-disconnected';
+                    waInitStatus.innerText = 'Disconnected';
+                    waInitStatus.style.color = 'var(--danger)';
+                    authTabBtn.style.color = 'var(--danger)';
+                }
             }
         }
 
