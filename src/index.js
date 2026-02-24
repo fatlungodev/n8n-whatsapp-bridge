@@ -525,6 +525,9 @@ httpServer.listen(PORT, () => {
 
 // --- WhatsApp Setup ---
 async function startWhatsApp() {
+    // Kill any existing socket first to prevent concurrent connections
+    killSocket();
+
     const { state, saveCreds } = await useMultiFileAuthState('auth_session');
     const { version } = await fetchLatestBaileysVersion();
     isManualStop = false;
@@ -539,9 +542,15 @@ async function startWhatsApp() {
         printQRInTerminal: false
     });
 
-    sock.ev.on('creds.update', saveCreds);
+    // Capture reference so close handler can check if it's stale
+    const currentSock = sock;
 
-    sock.ev.on('connection.update', (update) => {
+    currentSock.ev.on('creds.update', saveCreds);
+
+    currentSock.ev.on('connection.update', (update) => {
+        // Ignore events from a stale socket
+        if (sock !== currentSock) return;
+
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
@@ -565,8 +574,14 @@ async function startWhatsApp() {
             io.emit('wa-status', { status: waStatus });
 
             if (shouldReconnect && !isManualStop) {
-                console.log('Reconnecting WhatsApp...');
-                startWhatsApp();
+                // Delay before reconnect to avoid tight loop
+                console.log('Reconnecting WhatsApp in 3s...');
+                setTimeout(() => {
+                    // Re-check: don't reconnect if another start happened or manual stop
+                    if (sock === currentSock || sock === null) {
+                        startWhatsApp();
+                    }
+                }, 3000);
             } else if (isManualStop) {
                 console.log('Stop acknowledged, skipping reconnect.');
             }
