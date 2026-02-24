@@ -17,7 +17,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
 import { checkSecurity } from './services/trend-guard.js';
-import { getChatCompletion } from './services/llm.js';
+import { getChatCompletion, getTextCompletion } from './services/llm.js';
 import { logAudit, getAuditLogs } from './services/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -105,6 +105,7 @@ function getMobileSettings(mobileNumber) {
         mobileSettings.set(mobileNumber, {
             sessionEnabled: false,
             guardEnabled: true, // Default ON for WhatsApp
+            llmRouterEnabled: true, // Default ON
             history: []
         });
     }
@@ -622,6 +623,29 @@ async function startWhatsApp() {
                 await sock.sendMessage(remoteJid, { text: '🧠 Session Memory: CLEARED' });
                 continue;
             }
+            // --- Per-Mobile LLM Router Commands ---
+            if (text.toLowerCase() === '/llmrouter on') {
+                const settings = getMobileSettings(effectiveSender);
+                settings.llmRouterEnabled = true;
+                logAudit('llm_router_toggle', {
+                    enabled: true,
+                    source: 'whatsapp',
+                    sender: effectiveSender
+                });
+                await sock.sendMessage(remoteJid, { text: '🔀 LLM Router: ENABLED (Smart Routing ON)' });
+                continue;
+            }
+            if (text.toLowerCase() === '/llmrouter off') {
+                const settings = getMobileSettings(effectiveSender);
+                settings.llmRouterEnabled = false;
+                logAudit('llm_router_toggle', {
+                    enabled: false,
+                    source: 'whatsapp',
+                    sender: effectiveSender
+                });
+                await sock.sendMessage(remoteJid, { text: '🔀 LLM Router: DISABLED (Always using Text Model)' });
+                continue;
+            }
 
             try {
                 // --- Download image if present ---
@@ -695,7 +719,16 @@ async function startWhatsApp() {
                     io.emit('wa-comm', { role: 'ai', text: '🎨 正在為您生成圖片，請稍候...', sender: effectiveSender });
                 };
 
-                const response = await getChatCompletion(text || 'Describe this image', imageData, history, onPendingImage);
+                const settings = getMobileSettings(effectiveSender);
+                let response;
+
+                if (settings.llmRouterEnabled || imageData) {
+                    response = await getChatCompletion(text || 'Describe this image', imageData, history, onPendingImage);
+                } else {
+                    // Bypass router: force text completion
+                    console.log('--- LLM Router Bypassed: Forcing Text Model ---');
+                    response = await getTextCompletion(text, null, history);
+                }
 
                 console.log('--- LLM Response ---');
                 console.log(JSON.stringify({ text: response.text, hasImage: !!response.image, isImageGeneration: response.isImageGeneration }, null, 2));

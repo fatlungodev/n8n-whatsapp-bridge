@@ -48,7 +48,7 @@ async function detectImageIntent(textPrompt) {
                 { role: 'user', parts: [{ text: INTENT_SYSTEM_PROMPT + '\n\nUser message: ' + textPrompt }] }
             ]
         });
-        
+
         const intent = response.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toUpperCase() || 'TEXT';
         console.log(`--- Intent Detection: "${textPrompt.substring(0, 50)}..." -> ${intent} ---`);
         return intent === 'IMAGE';
@@ -76,7 +76,7 @@ async function generateImage(prompt) {
 
     const result = { text: '', image: null };
     const responseParts = response.candidates?.[0]?.content?.parts || [];
-    
+
     for (const part of responseParts) {
         if (part.text) {
             result.text += part.text;
@@ -95,13 +95,13 @@ async function generateImage(prompt) {
 /**
  * Get text completion using Gemini 2.5 Flash
  */
-async function getTextCompletion(textPrompt, imageData, history) {
+export async function getTextCompletion(textPrompt, imageData, history) {
     const currentParts = [];
-    
+
     if (textPrompt) {
         currentParts.push({ text: textPrompt });
     }
-    
+
     if (imageData) {
         currentParts.push({
             inlineData: {
@@ -112,14 +112,14 @@ async function getTextCompletion(textPrompt, imageData, history) {
     }
 
     let contents = [];
-    
+
     if (history && history.length > 0) {
         contents = history.map(msg => ({
             role: msg.role,
             parts: [{ text: msg.text }]
         }));
     }
-    
+
     contents.push({
         role: 'user',
         parts: currentParts
@@ -136,11 +136,15 @@ async function getTextCompletion(textPrompt, imageData, history) {
 
     const result = { text: '' };
     const responseParts = response.candidates?.[0]?.content?.parts || [];
-    
+
     for (const part of responseParts) {
         if (part.text) {
             result.text += part.text;
         }
+    }
+
+    if (!result.text && response.candidates?.[0]?.finishReason === 'SAFETY') {
+        result.text = '⚠️ The response was blocked by safety filters.';
     }
 
     return result;
@@ -161,7 +165,7 @@ async function getTextCompletion(textPrompt, imageData, history) {
 export async function getChatCompletion(textPrompt, imageData = null, history = null, onPendingImage = null) {
     try {
         console.log('--- LLM Router ---');
-        
+
         // If user sent an image, always use text model for analysis
         if (imageData) {
             console.log('--- Route: Image Analysis (user provided image) ---');
@@ -170,15 +174,15 @@ export async function getChatCompletion(textPrompt, imageData = null, history = 
 
         // Detect intent for text-only requests
         const wantsImage = await detectImageIntent(textPrompt);
-        
+
         if (wantsImage) {
             console.log('--- Route: Image Generation ---');
-            
+
             // Notify caller that image generation is starting (for async "generating..." message)
             if (onPendingImage) {
                 onPendingImage();
             }
-            
+
             const imageResult = await generateImage(textPrompt);
             imageResult.isImageGeneration = true;
             return imageResult;
