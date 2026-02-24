@@ -457,8 +457,12 @@
                 <p style="opacity: 0.6;">Your session is active. You can now receive and send messages.</p>
             </div>
 
-            <div style="display: flex; gap: 1rem;">
+            <div style="display: flex; gap: 1rem; justify-content: center;">
                 <button id="reconnect-btn" onclick="reconnect()">Reconnect</button>
+                <button id="stop-btn" class="btn-danger" style="display: none;" onclick="stopWA()">Stop</button>
+                <button id="clear-session-btn" class="btn-outline"
+                    style="border-color: var(--danger); color: var(--danger); display: none;"
+                    onclick="clearSession()">Clear Session</button>
                 <button id="logout-btn" class="btn-danger" style="display: none;" onclick="logout()">Logout</button>
             </div>
         </div>
@@ -533,6 +537,8 @@
         const qrCanvas = document.getElementById('qr-canvas');
         const connectedInfo = document.getElementById('connected-info');
         const logoutBtn = document.getElementById('logout-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const clearSessionBtn = document.getElementById('clear-session-btn');
         const reconnectBtn = document.getElementById('reconnect-btn');
         const authTabBtn = document.getElementById('auth-tab-btn');
 
@@ -684,16 +690,22 @@
                 qrContainer.style.display = 'none';
                 connectedInfo.style.display = 'block';
                 logoutBtn.style.display = 'flex';
+                stopBtn.style.display = 'none';
+                clearSessionBtn.style.display = 'none';
                 reconnectBtn.style.display = 'none';
                 authTabBtn.style.color = 'var(--success)';
             } else if (status === 'connecting') {
                 connectedInfo.style.display = 'none';
                 logoutBtn.style.display = 'none';
+                stopBtn.style.display = 'flex';
+                clearSessionBtn.style.display = 'flex';
                 reconnectBtn.style.display = 'none';
                 authTabBtn.style.color = 'var(--warning)';
             } else {
                 connectedInfo.style.display = 'none';
                 logoutBtn.style.display = 'none';
+                stopBtn.style.display = 'none';
+                clearSessionBtn.style.display = 'flex';
                 reconnectBtn.style.display = 'flex';
                 authTabBtn.style.color = 'var(--danger)';
             }
@@ -750,6 +762,12 @@
         function toggleSession() { socket.emit('toggle-session'); }
         function logout() { socket.emit('wa-logout'); }
         function reconnect() { socket.emit('wa-reconnect'); }
+        function stopWA() { socket.emit('wa-stop'); }
+        function clearSession() {
+            if (confirm('Are you sure you want to clear the session files? This will log you out completely.')) {
+                socket.emit('wa-clear-session');
+            }
+        }
 
         function switchView(view, el) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));

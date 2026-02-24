@@ -84,6 +84,7 @@ console.error = (...args) => {
 let sock = null;
 let qrCode = null;
 let waStatus = 'disconnected'; // disconnected, connecting, connected
+let isManualStop = false;
 
 // --- Web Settings (separate from WhatsApp) ---
 let webGuardEnabled = true;
@@ -345,11 +346,72 @@ io.on('connection', (socket) => {
 
         // Trigger fresh start to show new QR
         console.log('Restarting WhatsApp for new login...');
+        isManualStop = false;
+        startWhatsApp();
+    });
+
+    socket.on('wa-stop', () => {
+        console.log('Manual stop & reset requested');
+        isManualStop = true;
+        if (sock) {
+            try { sock.end(); } catch (e) { }
+            sock = null;
+        }
+
+        // Wipe session to ensure next start generates new QR
+        const authPath = path.join(__dirname, '../auth_session');
+        if (fs.existsSync(authPath)) {
+            try {
+                fs.rmSync(authPath, { recursive: true, force: true });
+                console.log('Session folder removed for stop');
+            } catch (err) {
+                console.error('Error removing session folder:', err);
+            }
+        }
+
+        waStatus = 'disconnected';
+        qrCode = null;
+        io.emit('wa-status', { status: waStatus });
+        io.emit('wa-qr', { qr: null });
+
+        // Trigger fresh start
+        console.log('Restarting WhatsApp for fresh login...');
+        isManualStop = false;
+        startWhatsApp();
+    });
+
+    socket.on('wa-clear-session', () => {
+        console.log('Clearing WhatsApp session & Restarting...');
+        isManualStop = true;
+        if (sock) {
+            try { sock.end(); } catch (e) { }
+            sock = null;
+        }
+
+        const authPath = path.join(__dirname, '../auth_session');
+        if (fs.existsSync(authPath)) {
+            try {
+                fs.rmSync(authPath, { recursive: true, force: true });
+                console.log('Session folder removed');
+            } catch (err) {
+                console.error('Error removing session folder:', err);
+            }
+        }
+
+        waStatus = 'disconnected';
+        qrCode = null;
+        io.emit('wa-status', { status: waStatus });
+        io.emit('wa-qr', { qr: null });
+
+        // Trigger fresh start
+        console.log('Restarting WhatsApp after session clear...');
+        isManualStop = false;
         startWhatsApp();
     });
 
     socket.on('wa-reconnect', () => {
         if (waStatus !== 'connected') {
+            isManualStop = false;
             startWhatsApp();
         }
     });
@@ -462,6 +524,7 @@ httpServer.listen(PORT, () => {
 async function startWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_session');
     const { version } = await fetchLatestBaileysVersion();
+    isManualStop = false;
 
     waStatus = 'connecting';
     io.emit('wa-status', { status: waStatus });
@@ -498,9 +561,11 @@ async function startWhatsApp() {
             qrCode = null;
             io.emit('wa-status', { status: waStatus });
 
-            if (shouldReconnect) {
+            if (shouldReconnect && !isManualStop) {
                 console.log('Reconnecting WhatsApp...');
                 startWhatsApp();
+            } else if (isManualStop) {
+                console.log('Stop acknowledged, skipping reconnect.');
             }
         } else if (connection === 'open') {
             logAudit('whatsapp_connection', { status: 'connected' });
