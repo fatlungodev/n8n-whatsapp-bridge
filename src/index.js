@@ -851,4 +851,5 @@ async function startWhatsApp() {
     });
 }
 
-startWhatsApp().catch(err => console.error('Startup Error:', err));
+// WhatsApp does NOT auto-connect. User must click "Connect" from the web UI.
+console.log('WhatsApp ready — waiting for manual connect from web UI.');

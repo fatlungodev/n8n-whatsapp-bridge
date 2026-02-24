@@ -443,20 +443,19 @@
     <div id="auth-view" class="view">
         <div class="auth-content">
 
-            <!-- Stage 1: Initialized (no auth / waiting for QR scan) -->
+            <!-- Stage 1: Initialized (not connected) -->
             <div id="wa-stage-init">
                 <div style="margin-bottom: 1.5rem;">
-                    <div
-                        style="display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); padding: 0.5rem 1.25rem; border-radius: 999px; margin-bottom: 1rem;">
-                        <span id="wa-init-dot" class="status-dot dot-connecting"
+                    <div id="wa-status-pill"
+                        style="display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(100, 116, 139, 0.1); border: 1px solid var(--muted); padding: 0.5rem 1.25rem; border-radius: 999px; margin-bottom: 1rem;">
+                        <span id="wa-init-dot" class="status-dot dot-disconnected"
                             style="width: 10px; height: 10px;"></span>
-                        <span id="wa-init-status"
-                            style="font-size: 0.85rem; font-weight: 600; color: var(--warning);">Waiting for QR
-                            Code...</span>
+                        <span id="wa-init-status" style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">Not
+                            Connected</span>
                     </div>
                     <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Link WhatsApp</h2>
-                    <p style="opacity: 0.5; font-size: 0.9rem;">Open WhatsApp on your phone → Settings → Linked Devices
-                        → Scan the QR code below</p>
+                    <p style="opacity: 0.5; font-size: 0.9rem;">Click Connect to generate a QR code, then scan it with
+                        WhatsApp.</p>
                 </div>
 
                 <div id="qr-container" class="qr-card" style="display: none;">
@@ -466,10 +465,12 @@
                 </div>
 
                 <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem;">
-                    <button id="stop-btn" class="btn-danger" onclick="stopWA()">⏹ Stop</button>
+                    <button id="connect-btn" onclick="reconnect()" style="padding: 0.85rem 2.5rem; font-size: 1rem;">📱
+                        Connect</button>
+                    <button id="stop-btn" class="btn-danger" style="display: none;" onclick="stopWA()">⏹ Stop</button>
                     <button id="clear-session-btn" class="btn-outline"
-                        style="border-color: var(--warning); color: var(--warning);" onclick="clearSession()">🔄 Clear &
-                        Refresh QR</button>
+                        style="border-color: var(--warning); color: var(--warning); display: none;"
+                        onclick="clearSession()">🔄 Clear & Refresh QR</button>
                 </div>
             </div>
 
@@ -558,6 +559,10 @@
         const stageConnected = document.getElementById('wa-stage-connected');
         const waInitDot = document.getElementById('wa-init-dot');
         const waInitStatus = document.getElementById('wa-init-status');
+        const waStatusPill = document.getElementById('wa-status-pill');
+        const connectBtn = document.getElementById('connect-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const clearSessionBtn = document.getElementById('clear-session-btn');
         const authTabBtn = document.getElementById('auth-tab-btn');
 
         // Image upload state
@@ -706,20 +711,32 @@
                 stageConnected.style.display = 'block';
                 authTabBtn.style.color = 'var(--success)';
             } else {
-                // Both 'connecting' and 'disconnected' show the init stage
                 stageInit.style.display = 'block';
                 stageConnected.style.display = 'none';
 
                 if (status === 'connecting') {
+                    waStatusPill.style.background = 'rgba(245, 158, 11, 0.1)';
+                    waStatusPill.style.borderColor = 'var(--warning)';
                     waInitDot.className = 'status-dot dot-connecting';
                     waInitStatus.innerText = 'Connecting...';
                     waInitStatus.style.color = 'var(--warning)';
                     authTabBtn.style.color = 'var(--warning)';
+                    // Show stop/clear, hide connect
+                    connectBtn.style.display = 'none';
+                    stopBtn.style.display = 'flex';
+                    clearSessionBtn.style.display = 'flex';
                 } else {
+                    waStatusPill.style.background = 'rgba(100, 116, 139, 0.1)';
+                    waStatusPill.style.borderColor = 'var(--muted)';
                     waInitDot.className = 'status-dot dot-disconnected';
-                    waInitStatus.innerText = 'Disconnected';
-                    waInitStatus.style.color = 'var(--danger)';
+                    waInitStatus.innerText = 'Not Connected';
+                    waInitStatus.style.color = 'var(--muted)';
                     authTabBtn.style.color = 'var(--danger)';
+                    // Show connect, hide stop/clear
+                    connectBtn.style.display = 'flex';
+                    stopBtn.style.display = 'none';
+                    clearSessionBtn.style.display = 'none';
+                    qrContainer.style.display = 'none';
                 }
             }
         }
