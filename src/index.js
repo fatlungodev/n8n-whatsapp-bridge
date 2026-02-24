@@ -103,6 +103,26 @@ function killSocket() {
     }
 }
 
+/**
+ * Clear auth session files without removing the directory itself.
+ * This avoids EBUSY errors on Docker bind mounts.
+ */
+function clearAuthSession() {
+    const authPath = path.join(__dirname, '../auth_session');
+    if (fs.existsSync(authPath)) {
+        try {
+            const entries = fs.readdirSync(authPath);
+            for (const entry of entries) {
+                const entryPath = path.join(authPath, entry);
+                fs.rmSync(entryPath, { recursive: true, force: true });
+            }
+            console.log('Session files cleared');
+        } catch (err) {
+            console.error('Error clearing session files:', err);
+        }
+    }
+}
+
 // --- Web Settings (separate from WhatsApp) ---
 let webGuardEnabled = true;
 let webSessionEnabled = false;
@@ -346,15 +366,7 @@ io.on('connection', (socket) => {
         killSocket();
 
         // --- Remove session files ---
-        const authPath = path.join(__dirname, '../auth_session');
-        if (fs.existsSync(authPath)) {
-            try {
-                fs.rmSync(authPath, { recursive: true, force: true });
-                console.log('Session folder removed');
-            } catch (err) {
-                console.error('Error removing session folder:', err);
-            }
-        }
+        clearAuthSession();
 
         waStatus = 'disconnected';
         qrCode = null;
@@ -372,15 +384,7 @@ io.on('connection', (socket) => {
         killSocket();
 
         // Wipe session to ensure next start generates new QR
-        const authPath = path.join(__dirname, '../auth_session');
-        if (fs.existsSync(authPath)) {
-            try {
-                fs.rmSync(authPath, { recursive: true, force: true });
-                console.log('Session folder removed for stop');
-            } catch (err) {
-                console.error('Error removing session folder:', err);
-            }
-        }
+        clearAuthSession();
 
         waStatus = 'disconnected';
         qrCode = null;
@@ -396,15 +400,7 @@ io.on('connection', (socket) => {
         console.log('Clearing WhatsApp session & Restarting...');
         killSocket();
 
-        const authPath = path.join(__dirname, '../auth_session');
-        if (fs.existsSync(authPath)) {
-            try {
-                fs.rmSync(authPath, { recursive: true, force: true });
-                console.log('Session folder removed');
-            } catch (err) {
-                console.error('Error removing session folder:', err);
-            }
-        }
+        clearAuthSession();
 
         waStatus = 'disconnected';
         qrCode = null;
