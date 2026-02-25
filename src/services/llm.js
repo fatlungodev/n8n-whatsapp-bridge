@@ -1,12 +1,38 @@
 import { GoogleGenAI } from '@google/genai';
 import { config } from '../config.js';
-import { ProxyAgent, setGlobalDispatcher } from 'undici';
+import { ProxyAgent, fetch as undiciFetch } from 'undici';
 
 // Configure proxy if available
+// Node 25's native fetch ignores undici's setGlobalDispatcher,
+// but @google/genai calls bare globalThis.fetch() internally.
+// We override it with undici's fetch bound to the proxy dispatcher.
 const proxyUrl = config.geminiProxy;
 if (proxyUrl) {
-    const proxyAgent = new ProxyAgent(proxyUrl);
-    setGlobalDispatcher(proxyAgent);
+    // Trend Micro proxy uses a self-signed cert for SSL inspection.
+    // We disable certificate rejection to allow the connection.
+    const proxyAgent = new ProxyAgent({
+        uri: proxyUrl,
+        connect: {
+            rejectUnauthorized: false
+        }
+    });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url, opts) => {
+        const isGoogle = typeof url === 'string' && url.includes('googleapis.com');
+        if (isGoogle) {
+            console.log(`[Fetch Override] Proxying request to: ${url}`);
+            const start = Date.now();
+            try {
+                const res = await undiciFetch(url, { ...opts, dispatcher: proxyAgent });
+                console.log(`[Fetch Override] Response from ${url}: ${res.status} (${Date.now() - start}ms)`);
+                return res;
+            } catch (err) {
+                console.error(`[Fetch Override] FAILED request to ${url}:`, err);
+                throw err;
+            }
+        }
+        return originalFetch(url, opts);
+    };
     console.log(`Using proxy for Gemini: ${proxyUrl}`);
 }
 

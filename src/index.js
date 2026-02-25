@@ -3,7 +3,8 @@ import {
     useMultiFileAuthState,
     DisconnectReason,
     fetchLatestBaileysVersion,
-    downloadMediaMessage
+    downloadMediaMessage,
+    Browsers
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import { Boom } from '@hapi/boom';
@@ -258,7 +259,7 @@ io.use((socket, next) => {
 
 // Authentication Middleware
 const isAuthenticated = (req, res, next) => {
-    if (req.session && req.session.authenticated) {
+    if (config.disableLogin || (req.session && req.session.authenticated)) {
         return next();
     }
     res.redirect('/login');
@@ -289,7 +290,7 @@ app.get('/logout', (req, res) => {
 
 // Protect the root and all other static files
 app.use('/', (req, res, next) => {
-    if (req.path === '/login') return next();
+    if (config.disableLogin || req.path === '/login') return next();
     isAuthenticated(req, res, next);
 });
 
@@ -298,7 +299,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 io.on('connection', (socket) => {
     // Check socket session
     const session = socket.request.session;
-    if (!session || !session.authenticated) {
+    if (!config.disableLogin && (!session || !session.authenticated)) {
         console.log('Unauthorized socket connection attempt');
         socket.disconnect();
         return;
@@ -528,26 +529,33 @@ async function startWhatsApp() {
     // Kill any existing socket first to prevent concurrent connections
     killSocket();
 
+    console.log('Starting WhatsApp connection sequence...');
     const { state, saveCreds } = await useMultiFileAuthState('auth_session');
-    const { version } = await fetchLatestBaileysVersion();
+    console.log('Auth state loaded.');
+    const { version } = await fetchLatestBaileysVersion().catch(err => {
+        console.error('Error fetching latest Baileys version:', err);
+        return { version: [2, 3000, 1015901307] }; // Fallback version
+    });
+    console.log(`Baileys version: ${version}`);
     isManualStop = false;
 
     waStatus = 'connecting';
     io.emit('wa-status', { status: waStatus });
+    console.log('Connecting to WhatsApp...');
 
-    // Configure proxy agent if provided
     const socketConfig = {
         version,
-        logger: pino({ level: 'silent' }),
+        logger: pino({ level: 'debug' }),
         auth: state,
-        printQRInTerminal: false
+        printQRInTerminal: false,
+        browser: Browsers.macOS('Desktop'),
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 60000,
+        keepAliveIntervalMs: 10000,
+        emitOwnEvents: true,
+        retryRequestDelayMs: 5000,
+        generateHighQualityLinkPreview: true
     };
-
-    if (config.whatsappProxy) {
-        console.log(`Using proxy for WhatsApp: ${config.whatsappProxy}`);
-        const agent = new HttpsProxyAgent(config.whatsappProxy);
-        socketConfig.agent = agent;
-    }
 
     sock = makeWASocket(socketConfig);
 
@@ -563,6 +571,7 @@ async function startWhatsApp() {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
+            console.log('--- WhatsApp QR Received ---');
             qrCode = qr;
             io.emit('wa-qr', { qr });
         }
@@ -571,10 +580,15 @@ async function startWhatsApp() {
             const shouldReconnect = (lastDisconnect.error instanceof Boom) ?
                 lastDisconnect.error.output.statusCode !== DisconnectReason.loggedOut : true;
 
-            const reason = lastDisconnect.error?.output?.payload?.message || 'unknown';
+            const reason = lastDisconnect.error?.output?.payload?.message || lastDisconnect.error?.message || 'unknown';
+            const statusCode = lastDisconnect.error?.output?.statusCode;
+
+            console.error(`WhatsApp connection closed. Status: ${statusCode}, Reason: ${reason}`);
+
             logAudit('whatsapp_connection', {
                 status: 'disconnected',
                 reason,
+                statusCode,
                 reconnect: shouldReconnect
             });
 
@@ -861,5 +875,11 @@ async function startWhatsApp() {
     });
 }
 
-// WhatsApp does NOT auto-connect. User must click "Connect" from the web UI.
-console.log('WhatsApp ready — waiting for manual connect from web UI.');
+// Auto-connect WhatsApp if authentication data exists
+const authPath = path.join(__dirname, '../auth_session/creds.json');
+if (fs.existsSync(authPath)) {
+    console.log('Authentication data found. Auto-connecting WhatsApp...');
+    startWhatsApp();
+} else {
+    console.log('No authentication data found. Please connect manually via Web UI.');
+}

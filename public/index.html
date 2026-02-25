@@ -571,6 +571,9 @@
         const imagePreview = document.getElementById('image-preview');
         const imageInput = document.getElementById('image-input');
 
+        // WhatsApp State tracking
+        let currentQr = null;
+
         // Socket Handlers
         socket.on('response', (data) => {
             appendMessage(data.text, 'ai', false, data.image);
@@ -697,6 +700,8 @@
         });
 
         socket.on('wa-qr', (data) => {
+            console.log('QR Received');
+            currentQr = data.qr;
             qrContainer.style.display = 'block';
             QRCode.toCanvas(qrCanvas, data.qr, { width: 250 }, (error) => {
                 if (error) console.error(error);
@@ -721,11 +726,29 @@
                     waInitStatus.innerText = 'Connecting...';
                     waInitStatus.style.color = 'var(--warning)';
                     authTabBtn.style.color = 'var(--warning)';
+
+                    // Show container immediately to signal activity
+                    qrContainer.style.display = 'block';
+                    if (!currentQr) {
+                        const ctx = qrCanvas.getContext('2d');
+                        ctx.clearRect(0, 0, qrCanvas.width, qrCanvas.height);
+                        ctx.fillStyle = '#64748b'; // var(--muted)
+                        ctx.font = '14px Outfit, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('Generating QR...', qrCanvas.width / 2, qrCanvas.height / 2);
+                    } else {
+                        // Re-render current QR if we have it
+                        QRCode.toCanvas(qrCanvas, currentQr, { width: 250 }, (error) => {
+                            if (error) console.error(error);
+                        });
+                    }
+
                     // Show stop/clear, hide connect
                     connectBtn.style.display = 'none';
                     stopBtn.style.display = 'flex';
                     clearSessionBtn.style.display = 'flex';
                 } else {
+                    currentQr = null; // Clear on disconnection/connection
                     waStatusPill.style.background = 'rgba(100, 116, 139, 0.1)';
                     waStatusPill.style.borderColor = 'var(--muted)';
                     waInitDot.className = 'status-dot dot-disconnected';
