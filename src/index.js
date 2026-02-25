@@ -12,6 +12,7 @@ import session from 'express-session';
 import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -534,12 +535,21 @@ async function startWhatsApp() {
     waStatus = 'connecting';
     io.emit('wa-status', { status: waStatus });
 
-    sock = makeWASocket({
+    // Configure proxy agent if provided
+    const socketConfig = {
         version,
         logger: pino({ level: 'silent' }),
         auth: state,
         printQRInTerminal: false
-    });
+    };
+
+    if (config.whatsappProxy) {
+        console.log(`Using proxy for WhatsApp: ${config.whatsappProxy}`);
+        const agent = new HttpsProxyAgent(config.whatsappProxy);
+        socketConfig.agent = agent;
+    }
+
+    sock = makeWASocket(socketConfig);
 
     // Capture reference so close handler can check if it's stale
     const currentSock = sock;
