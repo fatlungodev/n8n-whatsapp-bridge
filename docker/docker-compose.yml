@@ -1,0 +1,14 @@
+services:
+  trend-ai-guard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: ai-guard
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../auth_session:/app/auth_session
+      - ../log:/app/log
+    env_file:
+      - ../.env
