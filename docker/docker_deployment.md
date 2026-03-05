@@ -12,7 +12,34 @@ Deploy the **Trend AI Guard Demo** using Docker for a consistent and isolated en
 
 ## 🚀 Deployment Options
 
-### Option 1: Using Docker Compose (Recommended)
+### Option 1: Using Shell Scripts
+
+Quick scripts provided for building, starting, and stopping.
+
+1.  **Prepare the environment**:
+    ```bash
+    cp .env_example .env
+    mkdir -p auth_session log
+    ```
+
+2.  **Update/Build**:
+    ```bash
+    sh docker/update.sh
+    ```
+
+3.  **Start**:
+    ```bash
+    sh docker/start.sh
+    ```
+
+4.  **Stop & Remove**:
+    ```bash
+    sh docker/stop.sh
+    ```
+
+---
+
+### Option 2: Using Docker Compose (Recommended)
 
 1.  **Prepare the environment**:
     ```bash
@@ -27,7 +54,7 @@ Deploy the **Trend AI Guard Demo** using Docker for a consistent and isolated en
 
 ---
 
-### Option 2: Using Docker CLI
+### Option 3: Using Docker CLI
 
 1.  **Build the image**:
     ```bash
@@ -52,27 +79,6 @@ Deploy the **Trend AI Guard Demo** using Docker for a consistent and isolated en
       -v $(pwd)/log:/app/log \
       --env-file .env \
       trend-ai-guard
-    ```
-
----
-
-### Option 3: Using Shell Scripts
-
-Quick scripts provided for building, starting, and stopping.
-
-1.  **Update/Build**:
-    ```bash
-    sh docker/update.sh
-    ```
-
-2.  **Start**:
-    ```bash
-    sh docker/start.sh
-    ```
-
-3.  **Stop & Remove**:
-    ```bash
-    sh docker/stop.sh
     ```
 
 ## 🔍 Monitoring & Maintenance

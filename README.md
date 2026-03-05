@@ -105,6 +105,9 @@ A middleware application that demonstrates integrating **Trend Vision One AI Gua
 
 ## ⚙️ Setup
 
+> [!TIP]
+> **Prefer Docker?** For a containerized setup, follow the [Docker Deployment Guide](docker/docker_deployment.md).
+
 1. **Install Dependencies**:
    ```bash
    npm install
@@ -137,10 +140,6 @@ A middleware application that demonstrates integrating **Trend Vision One AI Gua
    ```bash
    npm start
    ```
-
-### 🐳 Docker Deployment
-
-For a containerized setup, please refer to the [Docker Deployment Guide](docker/docker_deployment.md).
 
 ## 📖 Usage
 
