@@ -24,17 +24,17 @@ Quick scripts provided for building, starting, and stopping.
 
 2.  **Update/Build**:
     ```bash
-    sh docker/update.sh
+    sh update.sh
     ```
 
 3.  **Start**:
     ```bash
-    sh docker/start.sh
+    sh start.sh
     ```
 
 4.  **Stop & Remove**:
     ```bash
-    sh docker/stop.sh
+    sh stop.sh
     ```
 
 ---
