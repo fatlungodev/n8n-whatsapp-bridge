@@ -12,9 +12,6 @@ A middleware application that demonstrates integrating **Trend Vision One AI Gua
 - **Secure Access**: Web console is protected by a password-protected login page.
 - **Server Log Streaming**: View real-time application and error logs directly in the web UI.
 - **Dynamic Allowlist**: Manage authorized WhatsApp numbers from the web console with zero-restart persistence.
-- **Gemini LLM**: Powered by Google's latest generative models with smart routing.
-- **Image Generation**: Automatic intent detection routes image requests to Gemini Image model.
-- **Image Analysis**: Upload images via WhatsApp for AI-powered analysis.
 - **Session Memory**: Optional conversation memory (last 30 messages) per user/channel.
 - **Per-User Settings**: Each WhatsApp user has independent Guard and Session settings.
 - **Audit Logging**: Local persistence of all security decisions and interactions.
@@ -53,12 +50,7 @@ A middleware application that demonstrates integrating **Trend Vision One AI Gua
 |            +----(Yes)----> [ TOGGLE & REPLY ]               |
 |            |                                                |
 |            v                                                |
-|   3. Image Message?                                         |
-|            |                                                |
-|            +----(Yes)----> [ SKIP GUARD, ANALYZE IMAGE ]    |
-|            |                                                |
-|            v                                                |
-|   4. Guard Enabled? (per-user setting)                      |
+|   3. Guard Enabled? (per-user setting)                      |
 |            |                                                |
 |            +----(No)----------------------+                 |
 |            |                              |                 |
@@ -74,19 +66,13 @@ A middleware application that demonstrates integrating **Trend Vision One AI Gua
 |       v         +-------------------------+                 |
 |  [ BLOCKED ]    |                                           |
 |                 v                                           |
-|         [ Smart Router ]                                    |
-|         (Intent Detection)                                  |
-|            /         \                                      |
-|        TEXT          IMAGE                                  |
-|          |             |                                    |
-|          v             v                                    |
-|   [ Gemini Text ]  [ Gemini Image ]                         |
-|   (gemini-3-flash) (gemini-3-pro-image)                     |
-|          |             |                                    |
-|          v             v                                    |
-|   [ Text Response ] [ Image + Text ]                        |
-|                 \     /                                     |
-|                  v   v                                      |
+|          [ Gemini Text ]                                    |
+|          (gemini-3-flash)                                   |
+|                 |                                           |
+|                 v                                           |
+|           [ Text Response ]                                 |
+|                 |                                           |
+|                 v                                           |
 |           [ Reply to User ]                                 |
 +-------------------------------------------------------------+
 ```
@@ -142,7 +128,6 @@ A middleware application that demonstrates integrating **Trend Vision One AI Gua
    |----------|---------|-------------|
    | `WHATSAPP_ALLOW_LIST` | (empty) | Comma-separated phone numbers that can interact with the bot |
    | `GEMINI_TEXT_MODEL` | `gemini-3-flash-preview` | Model for text conversations |
-   | `GEMINI_IMAGE_MODEL` | `gemini-3-pro-image-preview` | Model for image generation |
    | `GEMINI_HTTPS_PROXY` | (none) | Proxy for Gemini API (for blocked regions) |
    | `V1_HTTPS_PROXY` | (none) | Proxy for Trend Vision One API |
 | `WEB_PASSWORD` | `admin` | Password for web console access |
@@ -174,8 +159,6 @@ Access the dashboard at `http://localhost:3000`. This allows you to:
 
 Once linked, the bot will respond to messages from allowed users:
 - **Normal Chatting**: Send any prompt, and it will be processed through AI Guard and then Gemini.
-- **Image Analysis**: Send an image with optional caption for AI analysis (bypasses Guard).
-- **Image Generation**: Ask to "draw", "generate", or "create" an image, and the AI will generate one.
 
 **Commands (per-user settings):**
 
@@ -193,26 +176,10 @@ This project uses **Trend Vision One AI Guard** to check for:
 - **PII Leakage**: Blocking sensitive personal information.
 - **Toxicity**: Filtering out harmful or inappropriate language.
 
-> **Note**: Image messages bypass AI Guard security checks as the Guard API currently only supports text content.
-
-## 🧠 Smart Routing
-
-The application uses intelligent intent detection to route requests:
-
-| User Intent | Detection | Model Used |
-|-------------|-----------|------------|
-| Text conversation | Default | `GEMINI_TEXT_MODEL` |
-| Image generation | Keywords: draw, generate, create, paint... | `GEMINI_IMAGE_MODEL` |
-| Image analysis | User sends an image | `GEMINI_TEXT_MODEL` |
-
-When image generation is detected, the system:
-1. Sends a "generating..." message immediately
-2. Calls the image model asynchronously
-3. Returns both text description and generated image
-
 ## 📝 Changelog
 
-- **Feb 2026**: Added image generation, image analysis, session memory, per-user settings, secure web login, real-time log streaming, and dynamic allowlist management.
+- **Feb 2026**: Added session memory, per-user settings, secure web login, real-time log streaming, and dynamic allowlist management.
+- **Feb 28, 2026**: Hardened dashboard rendering against XSS.
 
 ---
 

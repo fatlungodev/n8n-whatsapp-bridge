@@ -455,8 +455,9 @@ io.on('connection', (socket) => {
 
             let result = { response: { action: 'allow' } };
 
-            // Skip Trend Guard for image messages (Web uses webGuardEnabled)
-            if (webGuardEnabled && !hasImage && text) {
+            // Guard still checks any provided text (including image captions).
+            // Image-only messages (no text) bypass guard.
+            if (webGuardEnabled && text) {
                 console.log('--- Trend Guard Request ---');
                 console.log(JSON.stringify({ prompt: text }, null, 2));
 
@@ -781,10 +782,11 @@ async function startWhatsApp() {
 
                 let result = { response: { action: 'allow' } };
 
-                // Skip Trend Guard for image messages
-                // Use per-mobile guard setting (falls back to global if not set)
+                // Guard still checks any provided text (including image captions).
+                // Image-only messages (no text) bypass guard.
+                // Use per-mobile guard setting.
                 const guardEnabled = isGuardEnabledFor(effectiveSender);
-                if (guardEnabled && !hasImage && text) {
+                if (guardEnabled && text) {
                     console.log(`--- Trend Guard Request (WhatsApp: ${effectiveSender}) ---`);
                     console.log(JSON.stringify({ prompt: text }, null, 2));
 

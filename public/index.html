@@ -632,10 +632,17 @@
                 tag.style.alignItems = 'center';
                 tag.style.gap = '0.5rem';
 
-                tag.innerHTML = `
-                    <span>${num}</span>
-                    <span onclick="removeNumber(${index})" style="cursor: pointer; opacity: 0.6; hover: opacity: 1;">&times;</span>
-                `;
+                const numberSpan = document.createElement('span');
+                numberSpan.innerText = num;
+                tag.appendChild(numberSpan);
+
+                const removeSpan = document.createElement('span');
+                removeSpan.innerText = '×';
+                removeSpan.style.cursor = 'pointer';
+                removeSpan.style.opacity = '0.6';
+                removeSpan.addEventListener('click', () => removeNumber(index));
+                tag.appendChild(removeSpan);
+
                 allowlistContainer.appendChild(tag);
             });
         }
@@ -664,7 +671,11 @@
         socket.on('audit-logs', (data) => {
             logContainer.innerHTML = '';
             if (!data.logs || data.logs.length === 0) {
-                logContainer.innerHTML = '<div style="color: var(--muted); margin-bottom: 1rem;">No audit logs found.</div>';
+                const emptyDiv = document.createElement('div');
+                emptyDiv.style.color = 'var(--muted)';
+                emptyDiv.style.marginBottom = '1rem';
+                emptyDiv.innerText = 'No audit logs found.';
+                logContainer.appendChild(emptyDiv);
                 return;
             }
             // Sort by timestamp to ensure chronological append
@@ -874,7 +885,7 @@
                 const action = log.action || 'allow';
                 const isBlock = action.toLowerCase() === 'block';
                 eventColor = isBlock ? 'var(--danger)' : 'var(--success)';
-                statusBadge = `<span style="color: ${eventColor}">[${action.toUpperCase()}]</span>`;
+                statusBadge = `[${action.toUpperCase()}]`;
                 div.style.borderLeft = `4px solid ${eventColor}`;
             } else if (log.event === 'whatsapp_connection') {
                 const isOk = log.status === 'connected';
@@ -885,46 +896,141 @@
                 div.style.borderLeft = `4px solid ${eventColor}`;
             }
 
-            let content = `
-                <div style="margin-bottom: 0.5rem; font-size: 0.75rem;">
-                   <span style="color: var(--muted)">[${timestamp}]</span>
-                   <span style="color: var(--primary)">[${log.event.toUpperCase()}]</span>
-                   ${log.channel ? `<span style="color: var(--secondary)">[${log.channel}]</span>` : ''}
-                   ${statusBadge}
-                </div>`;
+            const header = document.createElement('div');
+            header.style.marginBottom = '0.5rem';
+            header.style.fontSize = '0.75rem';
+
+            const timestampSpan = document.createElement('span');
+            timestampSpan.style.color = 'var(--muted)';
+            timestampSpan.innerText = `[${timestamp}] `;
+            header.appendChild(timestampSpan);
+
+            const eventSpan = document.createElement('span');
+            eventSpan.style.color = 'var(--primary)';
+            eventSpan.innerText = `[${String(log.event || 'unknown').toUpperCase()}] `;
+            header.appendChild(eventSpan);
+
+            if (log.channel) {
+                const channelSpan = document.createElement('span');
+                channelSpan.style.color = 'var(--secondary)';
+                channelSpan.innerText = `[${log.channel}] `;
+                header.appendChild(channelSpan);
+            }
+
+            if (statusBadge) {
+                const statusSpan = document.createElement('span');
+                statusSpan.style.color = eventColor;
+                statusSpan.innerText = statusBadge;
+                header.appendChild(statusSpan);
+            }
+
+            div.appendChild(header);
 
             if (log.event === 'security_check' || log.event === 'message_received' || log.event === 'message_blocked') {
-                if (log.prompt) content += `<div style="color: var(--text); font-weight: 600; margin-bottom: 0.5rem;">Prompt: "${log.prompt}"</div>`;
-                if (log.sender) content += `<div style="font-size: 0.75rem; color: var(--muted); margin-bottom: 0.5rem;">From: ${log.sender}</div>`;
+                if (log.prompt) {
+                    const promptDiv = document.createElement('div');
+                    promptDiv.style.color = 'var(--text)';
+                    promptDiv.style.fontWeight = '600';
+                    promptDiv.style.marginBottom = '0.5rem';
+                    promptDiv.innerText = `Prompt: "${log.prompt}"`;
+                    div.appendChild(promptDiv);
+                }
+                if (log.sender) {
+                    const senderDiv = document.createElement('div');
+                    senderDiv.style.fontSize = '0.75rem';
+                    senderDiv.style.color = 'var(--muted)';
+                    senderDiv.style.marginBottom = '0.5rem';
+                    senderDiv.innerText = `From: ${log.sender}`;
+                    div.appendChild(senderDiv);
+                }
             }
 
             if (log.event === 'security_check') {
                 if (log.reasons && log.reasons.length > 0) {
-                    content += `<div style="font-size: 0.75rem; color: var(--warning); margin-bottom: 0.5rem;">Reasons: ${log.reasons.join(', ')}</div>`;
+                    const reasonsDiv = document.createElement('div');
+                    reasonsDiv.style.fontSize = '0.75rem';
+                    reasonsDiv.style.color = 'var(--warning)';
+                    reasonsDiv.style.marginBottom = '0.5rem';
+                    reasonsDiv.innerText = `Reasons: ${log.reasons.join(', ')}`;
+                    div.appendChild(reasonsDiv);
                 }
                 if (log.result) {
-                    content += `
-                        <div style="margin-top: 0.75rem;">
-                            <details>
-                                <summary style="font-size: 0.7rem; color: var(--muted); cursor: pointer;">VIEW DETAILS</summary>
-                                <pre style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(0,0,0,0.2); border-radius: 0.25rem; opacity: 0.8; overflow-x: auto; max-height: 150px; font-size: 0.75rem;">${JSON.stringify(log.result, null, 2)}</pre>
-                            </details>
-                        </div>`;
+                    const detailsWrap = document.createElement('div');
+                    detailsWrap.style.marginTop = '0.75rem';
+                    const details = document.createElement('details');
+                    const summary = document.createElement('summary');
+                    summary.style.fontSize = '0.7rem';
+                    summary.style.color = 'var(--muted)';
+                    summary.style.cursor = 'pointer';
+                    summary.innerText = 'VIEW DETAILS';
+                    const pre = document.createElement('pre');
+                    pre.style.marginTop = '0.5rem';
+                    pre.style.padding = '0.5rem';
+                    pre.style.background = 'rgba(0,0,0,0.2)';
+                    pre.style.borderRadius = '0.25rem';
+                    pre.style.opacity = '0.8';
+                    pre.style.overflowX = 'auto';
+                    pre.style.maxHeight = '150px';
+                    pre.style.fontSize = '0.75rem';
+                    pre.innerText = JSON.stringify(log.result, null, 2);
+                    details.appendChild(summary);
+                    details.appendChild(pre);
+                    detailsWrap.appendChild(details);
+                    div.appendChild(detailsWrap);
                 }
             } else if (log.event === 'whatsapp_connection') {
-                content += `<div style="color: var(--text);">WhatsApp Status: <span style="color: ${eventColor}">${log.status}</span></div>`;
-                if (log.reason) content += `<div style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;">Reason: ${log.reason}</div>`;
+                const statusDiv = document.createElement('div');
+                statusDiv.style.color = 'var(--text)';
+                statusDiv.innerText = 'WhatsApp Status: ';
+                const statusText = document.createElement('span');
+                statusText.style.color = eventColor;
+                statusText.innerText = log.status;
+                statusDiv.appendChild(statusText);
+                div.appendChild(statusDiv);
+                if (log.reason) {
+                    const reasonDiv = document.createElement('div');
+                    reasonDiv.style.fontSize = '0.75rem';
+                    reasonDiv.style.color = 'var(--muted)';
+                    reasonDiv.style.marginTop = '0.25rem';
+                    reasonDiv.innerText = `Reason: ${log.reason}`;
+                    div.appendChild(reasonDiv);
+                }
             } else if (log.event === 'guard_toggle') {
                 const source = log.source === 'web_ui' ? 'Web' : (log.sender || 'Unknown');
-                content += `<div style="color: var(--text);">Security Guard toggled <span style="color: ${log.enabled ? 'var(--success)' : 'var(--danger)'}">${log.enabled ? 'ON' : 'OFF'}</span></div>`;
-                content += `<div style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;">Source: ${source}</div>`;
+                const toggleDiv = document.createElement('div');
+                toggleDiv.style.color = 'var(--text)';
+                toggleDiv.innerText = 'Security Guard toggled ';
+                const enabledSpan = document.createElement('span');
+                enabledSpan.style.color = log.enabled ? 'var(--success)' : 'var(--danger)';
+                enabledSpan.innerText = log.enabled ? 'ON' : 'OFF';
+                toggleDiv.appendChild(enabledSpan);
+                div.appendChild(toggleDiv);
+
+                const sourceDiv = document.createElement('div');
+                sourceDiv.style.fontSize = '0.75rem';
+                sourceDiv.style.color = 'var(--muted)';
+                sourceDiv.style.marginTop = '0.25rem';
+                sourceDiv.innerText = `Source: ${source}`;
+                div.appendChild(sourceDiv);
             } else if (log.event === 'session_toggle') {
                 const source = log.source === 'web_ui' ? 'Web' : (log.sender || 'Unknown');
-                content += `<div style="color: var(--text);">Session Memory toggled <span style="color: ${log.enabled ? 'var(--success)' : 'var(--danger)'}">${log.enabled ? 'ON' : 'OFF'}</span></div>`;
-                content += `<div style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;">Source: ${source}</div>`;
+                const sessionDiv = document.createElement('div');
+                sessionDiv.style.color = 'var(--text)';
+                sessionDiv.innerText = 'Session Memory toggled ';
+                const enabledSpan = document.createElement('span');
+                enabledSpan.style.color = log.enabled ? 'var(--success)' : 'var(--danger)';
+                enabledSpan.innerText = log.enabled ? 'ON' : 'OFF';
+                sessionDiv.appendChild(enabledSpan);
+                div.appendChild(sessionDiv);
+
+                const sourceDiv = document.createElement('div');
+                sourceDiv.style.fontSize = '0.75rem';
+                sourceDiv.style.color = 'var(--muted)';
+                sourceDiv.style.marginTop = '0.25rem';
+                sourceDiv.innerText = `Source: ${source}`;
+                div.appendChild(sourceDiv);
             }
 
-            div.innerHTML = content;
             logContainer.prepend(div);
         }
 
@@ -939,7 +1045,21 @@
             const color = log.type === 'error' ? '#f87171' : '#cbd5e1';
             const prefix = log.type === 'error' ? '[ERR]' : '[LOG]';
 
-            div.innerHTML = `<span style="color: #64748b;">[${timestamp}]</span> <span style="color: ${color}; font-weight: bold;">${prefix}</span> <span style="color: ${color};">${log.message}</span>`;
+            const tsSpan = document.createElement('span');
+            tsSpan.style.color = '#64748b';
+            tsSpan.innerText = `[${timestamp}] `;
+            div.appendChild(tsSpan);
+
+            const prefixSpan = document.createElement('span');
+            prefixSpan.style.color = color;
+            prefixSpan.style.fontWeight = 'bold';
+            prefixSpan.innerText = `${prefix} `;
+            div.appendChild(prefixSpan);
+
+            const messageSpan = document.createElement('span');
+            messageSpan.style.color = color;
+            messageSpan.innerText = String(log.message || '');
+            div.appendChild(messageSpan);
 
             consoleContainer.appendChild(div);
             // Auto scroll to bottom
