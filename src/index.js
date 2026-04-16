@@ -20,6 +20,7 @@ import { config } from './config.js';
 import { logAudit } from './services/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const INCOMING_WEBHOOK_TIMEOUT_MS = 10000;
 
 let sock = null;
 let qrCode = null;
@@ -49,6 +50,14 @@ app.use(sessionMiddleware);
 
 io.use((socket, next) => {
     sessionMiddleware(socket.request, {}, next);
+});
+
+process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled promise rejection:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught exception:', error);
 });
 
 function killSocket() {
@@ -112,6 +121,41 @@ function getSenderNumber(jid) {
     return jid.split('@')[0];
 }
 
+function getInboundSenderNumber(jidInfo = {}) {
+    const candidates = [
+        jidInfo.jid,
+        jidInfo.remoteJid,
+        jidInfo.participant,
+        jidInfo.participantAlt,
+        jidInfo.remoteJidAlt
+    ];
+
+    for (const candidate of candidates) {
+        const senderNumber = getSenderNumber(candidate);
+        if (senderNumber) {
+            return senderNumber;
+        }
+    }
+
+    return null;
+}
+
+function getMessageJidInfo(key = {}) {
+    const remoteJid = key.remoteJid || null;
+    const remoteJidAlt = key.remoteJidAlt || null;
+    const participant = key.participant || null;
+    const participantAlt = key.participantAlt || null;
+    const jid = participantAlt || remoteJidAlt || participant || remoteJid;
+
+    return {
+        jid,
+        remoteJid,
+        remoteJidAlt,
+        participant,
+        participantAlt
+    };
+}
+
 function normalizeRecipient(value) {
     if (typeof value !== 'string') return null;
 
@@ -137,6 +181,14 @@ function normalizeOutboundImage(image) {
     };
 }
 
+function summarizeInboundMessage(text, hasImage) {
+    if (typeof text === 'string' && text.trim()) {
+        return text.trim();
+    }
+
+    return hasImage ? '[image only]' : '[empty]';
+}
+
 async function forwardIncomingMessage(payload) {
     if (!config.whatsappIncomingWebhookUrl) {
         console.warn('WHATSAPP_INCOMING_WEBHOOK_URL is not configured. Incoming message forwarding skipped.');
@@ -151,15 +203,22 @@ async function forwardIncomingMessage(payload) {
         headers[config.whatsappIncomingWebhookSecretHeader] = config.whatsappIncomingWebhookSecret;
     }
 
-    const response = await fetch(config.whatsappIncomingWebhookUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload)
-    });
+    try {
+        const response = await fetch(config.whatsappIncomingWebhookUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(INCOMING_WEBHOOK_TIMEOUT_MS)
+        });
 
-    if (!response.ok) {
-        const responseText = await response.text();
-        throw new Error(`Incoming webhook failed with ${response.status}: ${responseText}`);
+        if (!response.ok) {
+            const responseText = await response.text();
+            throw new Error(`Incoming webhook failed with ${response.status}: ${responseText}`);
+        }
+    } catch (error) {
+        const causeCode = error?.cause?.code ? ` [${error.cause.code}]` : '';
+        const causeMessage = error?.cause?.message ? ` ${error.cause.message}` : '';
+        throw new Error(`Incoming webhook request failed${causeCode}: ${error.message}${causeMessage}`, { cause: error });
     }
 
     return { skipped: false };
@@ -447,25 +506,19 @@ async function startWhatsApp() {
         if (event.type !== 'notify') return;
 
         for (const msg of event.messages) {
-            if (!msg.message || msg.key.fromMe) {
+            if (!msg.message) {
                 continue;
             }
 
-            const remoteJid = msg.key.remoteJid;
-            const senderNumber = getSenderNumber(remoteJid);
-            if (!senderNumber) {
-                continue;
-            }
-
-            if (config.whatsappAllowList.length > 0 && !config.whatsappAllowList.includes(senderNumber)) {
-                logAudit('message_ignored', {
-                    channel: 'whatsapp',
-                    sender: senderNumber,
-                    reason: 'not_in_allowlist'
-                });
-                continue;
-            }
-
+            const jidInfo = getMessageJidInfo(msg.key);
+            const {
+                jid,
+                remoteJid,
+                remoteJidAlt,
+                participant,
+                participantAlt
+            } = jidInfo;
+            const messageId = msg.key.id || null;
             const imageMessage = msg.message.imageMessage;
             const hasImage = !!imageMessage;
             const text =
@@ -473,10 +526,83 @@ async function startWhatsApp() {
                 msg.message.extendedTextMessage?.text ||
                 imageMessage?.caption ||
                 '';
+            const preview = summarizeInboundMessage(text, hasImage);
 
-            if (!text && !hasImage) {
+            if (msg.key.fromMe) {
+                console.log(`[WA] Ignored self message ${messageId || 'unknown-id'}: ${preview}`);
+                logAudit('message_ignored', {
+                    channel: 'whatsapp',
+                    jid,
+                    remoteJid,
+                    remoteJidAlt,
+                    participant,
+                    participantAlt,
+                    messageId,
+                    reason: 'from_me',
+                    preview,
+                    hasImage
+                });
                 continue;
             }
+
+            const senderNumber = getInboundSenderNumber(jidInfo);
+            if (!senderNumber) {
+                console.log(`[WA] Ignored unsupported sender ${jid || 'unknown'}: ${preview}`);
+                logAudit('message_ignored', {
+                    channel: 'whatsapp',
+                    jid,
+                    remoteJid,
+                    remoteJidAlt,
+                    participant,
+                    participantAlt,
+                    messageId,
+                    reason: 'unsupported_sender',
+                    preview,
+                    hasImage
+                });
+                continue;
+            }
+
+            if (config.whatsappAllowList.length > 0 && !config.whatsappAllowList.includes(senderNumber)) {
+                console.log(`[WA] Ignored message from ${senderNumber}: not_in_allowlist (${preview})`);
+                io.emit('inbound-message-ignored', {
+                    sender: senderNumber,
+                    reason: 'not_in_allowlist',
+                    timestamp: new Date().toISOString()
+                });
+                logAudit('message_ignored', {
+                    channel: 'whatsapp',
+                    sender: senderNumber,
+                    jid,
+                    remoteJid,
+                    remoteJidAlt,
+                    participant,
+                    participantAlt,
+                    messageId,
+                    reason: 'not_in_allowlist',
+                    preview,
+                    hasImage
+                });
+                continue;
+            }
+
+            if (!text && !hasImage) {
+                console.log(`[WA] Ignored empty message from ${senderNumber}`);
+                logAudit('message_ignored', {
+                    channel: 'whatsapp',
+                    sender: senderNumber,
+                    jid,
+                    remoteJid,
+                    remoteJidAlt,
+                    participant,
+                    participantAlt,
+                    messageId,
+                    reason: 'empty_message'
+                });
+                continue;
+            }
+
+            console.log(`[WA] Incoming message from ${senderNumber}: ${preview}`);
 
             let image = null;
             if (hasImage) {
@@ -494,8 +620,12 @@ async function startWhatsApp() {
             const payload = {
                 channel: 'whatsapp',
                 sender: senderNumber,
+                jid,
                 remoteJid,
-                messageId: msg.key.id || null,
+                remoteJidAlt,
+                participant,
+                participantAlt,
+                messageId,
                 timestamp: msg.messageTimestamp ? Number(msg.messageTimestamp) : Date.now(),
                 text,
                 hasImage,
@@ -505,16 +635,19 @@ async function startWhatsApp() {
             logAudit('message_received', payload);
             io.emit('inbound-message', payload);
 
-            try {
-                await forwardIncomingMessage(payload);
-            } catch (error) {
+            void forwardIncomingMessage(payload).catch((error) => {
                 console.error('Incoming webhook forwarding failed:', error);
                 logAudit('incoming_webhook_failed', {
                     sender: senderNumber,
+                    jid,
+                    remoteJid,
+                    remoteJidAlt,
+                    participant,
+                    participantAlt,
                     messageId: payload.messageId,
                     error: error.message
                 });
-            }
+            });
         }
     });
 }

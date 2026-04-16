@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const config = {
-    port: Number(process.env.PORT || 3000),
+    port: Number(process.env.PORT || 3001),
     webPassword: process.env.WEB_PASSWORD || 'admin',
     sessionSecret: process.env.SESSION_SECRET || 'whatsapp-bridge-secret',
     disableLogin: process.env.DISABLE_LOGIN === 'true',

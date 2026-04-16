@@ -6,7 +6,7 @@ services:
     container_name: whatsapp-bridge
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3001"
     volumes:
       - ../auth_session:/app/auth_session
       - ../log:/app/log

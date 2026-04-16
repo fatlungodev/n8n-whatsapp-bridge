@@ -2,7 +2,7 @@
 sudo docker run -d \
   --name whatsapp-bridge \
   --restart always \
-  -p 3000:3000 \
+  -p 3001:3001 \
   -v $(pwd)/auth_session:/app/auth_session \
   -v $(pwd)/log:/app/log \
   --env-file .env \

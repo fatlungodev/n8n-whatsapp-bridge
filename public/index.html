@@ -319,16 +319,45 @@
         const statusText = document.getElementById('status-text');
         const incomingConfig = document.getElementById('incoming-config');
         const feed = document.getElementById('feed');
+        let currentStatus = 'disconnected';
+        let currentQr = null;
 
         function setStatus(status) {
+            currentStatus = status;
             statusDot.className = `dot ${status}`;
             statusText.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            renderQrArea();
+        }
 
-            if (status === 'connected') {
-                qrContainer.innerHTML = '<div class="qr-copy">WhatsApp is connected.</div>';
-            } else if (status === 'connecting') {
-                qrContainer.innerHTML = '<div class="qr-copy">Connecting to WhatsApp...</div>';
+        function renderQrArea() {
+            qrContainer.innerHTML = '';
+
+            if (currentQr) {
+                const canvas = document.createElement('canvas');
+                qrContainer.appendChild(canvas);
+                QRCode.toCanvas(canvas, currentQr, {
+                    width: 280,
+                    margin: 1
+                }, (error) => {
+                    if (error) {
+                        console.error('QR render failed:', error);
+                        qrContainer.innerHTML = '<div class="qr-copy">QR render failed. Please reconnect.</div>';
+                    }
+                });
+                return;
             }
+
+            if (currentStatus === 'connected') {
+                qrContainer.innerHTML = '<div class="qr-copy">WhatsApp is connected.</div>';
+                return;
+            }
+
+            if (currentStatus === 'connecting') {
+                qrContainer.innerHTML = '<div class="qr-copy">Generating QR code...</div>';
+                return;
+            }
+
+            qrContainer.innerHTML = '<div class="qr-copy">Waiting for QR code...</div>';
         }
 
         function prependFeed(title, message) {
@@ -348,9 +377,8 @@
         });
 
         socket.on('wa-qr', ({ qr }) => {
-            if (!qr) return;
-            qrContainer.innerHTML = '';
-            QRCode.toCanvas(qrContainer, qr, { width: 280, margin: 1 });
+            currentQr = qr || null;
+            renderQrArea();
         });
 
         socket.on('webhook-config', ({ incomingWebhookConfigured }) => {
@@ -362,6 +390,10 @@
         socket.on('inbound-message', ({ sender, text, hasImage }) => {
             const summary = text || (hasImage ? '[image only]' : '[empty]');
             prependFeed('Inbound', `From <strong>${sender}</strong>: ${summary}`);
+        });
+
+        socket.on('inbound-message-ignored', ({ sender, reason }) => {
+            prependFeed('Ignored', `From <strong>${sender}</strong>: blocked by <strong>${reason}</strong>.`);
         });
 
         socket.on('outbound-message', ({ to, text, hasImage }) => {

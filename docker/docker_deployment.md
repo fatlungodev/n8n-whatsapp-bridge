@@ -12,6 +12,9 @@ Deploy the **n8n WhatsApp bridge** using Docker for a consistent and isolated en
 
 ## 🚀 Deployment Options
 
+> [!IMPORTANT]
+> The Docker image now clones its application source from `https://github.com/fatlungodev/n8n-whatsapp-bridge.git` during build. Local code changes in this workspace are not included unless you change the Dockerfile back or point it at a different repo.
+
 ### Option 1: Using Shell Scripts
 
 Quick scripts provided for building, starting, and stopping.
@@ -74,7 +77,7 @@ Quick scripts provided for building, starting, and stopping.
     ```bash
     docker run -d \
       --name whatsapp-bridge \
-      -p 3000:3000 \
+      -p 3001:3001 \
       -v $(pwd)/auth_session:/app/auth_session \
       -v $(pwd)/log:/app/log \
       --env-file .env \

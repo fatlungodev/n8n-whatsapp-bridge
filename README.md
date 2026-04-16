@@ -26,7 +26,7 @@ cp .env_example .env
 
 | Variable | Required | Description |
 |---|---|---|
-| `PORT` | No | HTTP port. Default is `3000`. |
+| `PORT` | No | HTTP port. Default is `3001`. |
 | `WEB_PASSWORD` | No | Password for the web console. Default is `admin`. |
 | `SESSION_SECRET` | No | Session secret for console login. |
 | `DISABLE_LOGIN` | No | Set to `true` to disable console login. |
@@ -44,7 +44,7 @@ npm start
 
 5. Open the console
 
-[`http://localhost:3000`](http://localhost:3000)
+[`http://localhost:3001`](http://localhost:3001)
 
 Scan the QR code to register the WhatsApp account.
 
@@ -65,9 +65,9 @@ Use these settings when wiring the project to n8n:
 | Inbound webhook secret header name | `.env` | `WHATSAPP_INCOMING_WEBHOOK_SECRET_HEADER=x-webhook-secret` |
 | Inbound webhook secret value | `.env` | `WHATSAPP_INCOMING_WEBHOOK_SECRET=<shared-secret>` |
 | Outbound bridge auth key | `.env` | `N8N_API_KEY=<shared-api-key>` |
-| Outbound send endpoint | n8n `HTTP Request` node | `POST http://<bridge-host>:3000/api/whatsapp/send` |
-| Bridge status endpoint | n8n `HTTP Request` node | `GET http://<bridge-host>:3000/api/whatsapp/status` |
-| Bridge health endpoint | browser / monitoring / n8n | `GET http://<bridge-host>:3000/api/health` |
+| Outbound send endpoint | n8n `HTTP Request` node | `POST http://<bridge-host>:3001/api/whatsapp/send` |
+| Bridge status endpoint | n8n `HTTP Request` node | `GET http://<bridge-host>:3001/api/whatsapp/status` |
+| Bridge health endpoint | browser / monitoring / n8n | `GET http://<bridge-host>:3001/api/health` |
 
 ## Inbound webhook
 
@@ -172,7 +172,7 @@ This is the API n8n calls when it wants to send a message back to WhatsApp.
 Example full URL:
 
 ```text
-http://localhost:3000/api/whatsapp/send
+http://localhost:3001/api/whatsapp/send
 ```
 
 ### Authentication
@@ -306,7 +306,7 @@ Example response:
 ### Example 1: send reply text
 
 - Method: `POST`
-- URL: `http://<bridge-host>:3000/api/whatsapp/send`
+- URL: `http://<bridge-host>:3001/api/whatsapp/send`
 - Send Headers:
 - `Authorization: Bearer <N8N_API_KEY>`
 - `Content-Type: application/json`
@@ -322,7 +322,7 @@ Example response:
 ### Example 2: send image
 
 - Method: `POST`
-- URL: `http://<bridge-host>:3000/api/whatsapp/send`
+- URL: `http://<bridge-host>:3001/api/whatsapp/send`
 - Send Headers:
 - `Authorization: Bearer <N8N_API_KEY>`
 - `Content-Type: application/json`
@@ -343,7 +343,7 @@ Example response:
 ### Example 3: poll bridge status
 
 - Method: `GET`
-- URL: `http://<bridge-host>:3000/api/whatsapp/status`
+- URL: `http://<bridge-host>:3001/api/whatsapp/status`
 - Send Headers:
 - `Authorization: Bearer <N8N_API_KEY>`
 
