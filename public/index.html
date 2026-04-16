@@ -4,1152 +4,370 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trend Vision One AI Guard Demo</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <title>n8n WhatsApp bridge Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg: #0f172a;
-            --card: #1e293b;
-            --primary: #38bdf8;
-            --secondary: #818cf8;
-            --text: #f8fafc;
-            --muted: #64748b;
-            --danger: #ef4444;
-            --success: #22c55e;
-            --warning: #f59e0b;
+            --bg: #f4efe7;
+            --ink: #1f2937;
+            --muted: #6b7280;
+            --panel: rgba(255, 255, 255, 0.72);
+            --line: rgba(31, 41, 55, 0.12);
+            --green: #15803d;
+            --amber: #b45309;
+            --red: #b91c1c;
+            --blue: #1d4ed8;
         }
 
         * {
             box-sizing: border-box;
-            margin: 0;
-            padding: 0;
         }
 
         body {
-            font-family: 'Outfit', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Manrope', sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at top left, rgba(29, 78, 216, 0.16), transparent 28%),
+                radial-gradient(circle at bottom right, rgba(21, 128, 61, 0.14), transparent 24%),
+                var(--bg);
         }
 
-        header {
-            padding: 1rem 2rem;
-            background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        main {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 32px 20px 48px;
+        }
+
+        .hero {
+            display: grid;
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        .eyebrow {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--blue);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(32px, 5vw, 56px);
+            line-height: 0.96;
+            max-width: 760px;
+        }
+
+        .lead {
+            max-width: 720px;
+            font-size: 16px;
+            line-height: 1.6;
+            color: var(--muted);
+        }
+
+        .grid {
+            display: grid;
+            gap: 20px;
+            grid-template-columns: 1.1fr 0.9fr;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 28px;
+            padding: 24px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 18px 48px rgba(31, 41, 55, 0.08);
+        }
+
+        .panel h2 {
+            margin: 0 0 10px;
+            font-size: 22px;
+        }
+
+        .panel p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .status-row {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            z-index: 100;
+            gap: 12px;
+            margin: 20px 0 24px;
+            font-size: 15px;
+            font-weight: 600;
         }
 
-        .tabs {
-            display: flex;
-            background: var(--card);
-            padding: 0.25rem;
-            border-radius: 0.75rem;
-            gap: 0.25rem;
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 999px;
+            background: var(--muted);
         }
 
-        .tab {
-            padding: 0.5rem 1.5rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: 500;
-            font-size: 0.9rem;
-            opacity: 0.6;
+        .dot.connected {
+            background: var(--green);
+            box-shadow: 0 0 0 6px rgba(21, 128, 61, 0.16);
         }
 
-        .tab.active {
-            background: var(--bg);
-            opacity: 1;
-            color: var(--primary);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        .dot.connecting {
+            background: var(--amber);
+            box-shadow: 0 0 0 6px rgba(180, 83, 9, 0.14);
         }
 
-        .view {
-            display: none;
-            flex: 1;
-            flex-direction: column;
-            overflow: hidden;
+        .dot.disconnected {
+            background: var(--red);
+            box-shadow: 0 0 0 6px rgba(185, 28, 28, 0.14);
         }
 
-        .view.active {
-            display: flex;
+        .qr-shell {
+            min-height: 360px;
+            display: grid;
+            place-items: center;
+            border-radius: 24px;
+            border: 1px dashed rgba(31, 41, 55, 0.18);
+            background: rgba(255, 255, 255, 0.6);
+            padding: 20px;
         }
 
-        /* Chat View Styles */
-        #chat-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 2rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .message {
-            max-width: 80%;
-            padding: 1rem;
-            border-radius: 1rem;
-            line-height: 1.5;
-            animation: fadeIn 0.3s ease-out;
-            position: relative;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .user {
-            align-self: flex-end;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-        }
-
-        .ai {
-            align-self: flex-start;
-            background: var(--card);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .system {
-            align-self: center;
-            font-size: 0.8rem;
-            opacity: 0.6;
-            background: transparent;
-        }
-
-        .controls {
-            padding: 1.5rem 2rem;
-            background: var(--bg);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            gap: 1rem;
-        }
-
-        /* Auth View Styles */
-        .auth-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-            text-align: center;
-        }
-
-        .qr-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 1.5rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-        }
-
-        canvas {
+        #qr-container canvas {
             max-width: 100%;
             height: auto !important;
         }
 
-        .status-info {
-            margin-bottom: 2rem;
+        .qr-copy {
+            text-align: center;
+            line-height: 1.6;
+            color: var(--muted);
         }
 
-        .status-dot {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 0.5rem;
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 20px;
         }
 
-        .dot-connected {
-            background: var(--success);
-            box-shadow: 0 0 10px var(--success);
-        }
-
-        .dot-connecting {
-            background: var(--warning);
-            box-shadow: 0 0 10px var(--warning);
-        }
-
-        .dot-disconnected {
-            background: var(--danger);
-            box-shadow: 0 0 10px var(--danger);
-        }
-
-        /* General UI Elements */
-        input {
-            flex: 1;
-            background: var(--card);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 1rem;
-            border-radius: 0.75rem;
-            color: white;
-            outline: none;
-            transition: border 0.3s;
-        }
-
-        input:focus {
-            border-color: var(--primary);
-        }
-
-        button {
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.75rem;
+        button,
+        .logout-link {
             border: none;
-            background: var(--primary);
-            color: var(--bg);
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        button:hover {
-            opacity: 0.9;
-            transform: translateY(-1px);
-        }
-
-        button:active {
-            transform: translateY(0);
-        }
-
-        .btn-outline {
-            background: transparent;
-            border: 1px solid var(--primary);
-            color: var(--primary);
-        }
-
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-
-        /* Image upload styles */
-        .image-upload-btn {
-            background: var(--card);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: var(--text);
-            padding: 0.75rem;
-            cursor: pointer;
-        }
-
-        .image-upload-btn:hover {
-            border-color: var(--primary);
-        }
-
-        .image-preview-container {
-            position: relative;
-            display: none;
-            margin-bottom: 0.5rem;
-        }
-
-        .image-preview {
-            max-width: 200px;
-            max-height: 150px;
-            border-radius: 0.5rem;
-            object-fit: cover;
-        }
-
-        .image-preview-remove {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background: var(--danger);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-        }
-
-        .message-image {
-            max-width: 100%;
-            max-height: 300px;
-            border-radius: 0.5rem;
-            margin-top: 0.5rem;
-        }
-
-        .controls-wrapper {
-            display: flex;
-            flex-direction: column;
-            padding: 1rem 2rem;
-            background: var(--bg);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .controls-row {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .status-badge {
-            padding: 0.4rem 0.8rem;
             border-radius: 999px;
-            font-size: 0.75rem;
+            padding: 12px 18px;
+            font: inherit;
             font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.2s ease, opacity 0.2s ease;
         }
 
-        .badge-guard-active {
-            background: rgba(34, 197, 94, 0.1);
-            color: var(--success);
-            border: 1px solid var(--success);
+        button:hover,
+        .logout-link:hover {
+            transform: translateY(-1px);
+            opacity: 0.92;
         }
 
-        .badge-guard-inactive {
-            background: rgba(239, 68, 68, 0.1);
-            color: var(--danger);
-            border: 1px solid var(--danger);
+        .primary {
+            background: var(--ink);
+            color: white;
+        }
+
+        .secondary {
+            background: transparent;
+            color: var(--ink);
+            border: 1px solid rgba(31, 41, 55, 0.18);
+        }
+
+        .danger {
+            background: #7f1d1d;
+            color: white;
+        }
+
+        .info-list {
+            display: grid;
+            gap: 14px;
+            margin-top: 22px;
+        }
+
+        .info-card {
+            padding: 16px 18px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.62);
+            border: 1px solid var(--line);
+        }
+
+        .info-card strong {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+
+        code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 13px;
+            color: #111827;
+            word-break: break-all;
+        }
+
+        .feed {
+            margin-top: 22px;
+            display: grid;
+            gap: 10px;
+            max-height: 280px;
+            overflow: auto;
+        }
+
+        .feed-item {
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.66);
+            border: 1px solid var(--line);
+        }
+
+        .feed-item small {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--muted);
+        }
+
+        @media (max-width: 860px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .qr-shell {
+                min-height: 280px;
+            }
         }
     </style>
 </head>
 
 <body>
-    <header>
-        <div>
-            <h1>Trend Vision One AI Guard Demo</h1>
-            <p id="wa-header-status" style="font-size: 0.8rem; color: var(--muted);">Checking WhatsApp...</p>
-        </div>
+    <main>
+        <section class="hero">
+            <div class="eyebrow">WhatsApp x n8n</div>
+            <h1>n8n WhatsApp bridge only. Registration here, automation in n8n.</h1>
+            <p class="lead">
+                This console only keeps the WhatsApp connection layer: QR registration, connection status,
+                incoming message forwarding, and outbound delivery from n8n.
+            </p>
+        </section>
 
-        <div class="tabs">
-            <div class="tab active" onclick="switchView('dashboard', this)">Dashboard</div>
-            <div class="tab" onclick="switchView('chat', this)">Chat</div>
-            <div class="tab" id="auth-tab-btn" onclick="switchView('auth', this)">WhatsApp Auth</div>
-            <div class="tab" onclick="switchView('logs', this)">Security Logs</div>
-            <div class="tab" onclick="switchView('console', this)">Server Logs</div>
-            <div class="tab" onclick="switchView('settings', this)">Allowlist</div>
-        </div>
+        <section class="grid">
+            <div class="panel">
+                <h2>Registration</h2>
+                <p>Scan the QR code with WhatsApp to link this bridge account.</p>
 
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <div id="guard-badge" class="status-badge badge-guard-active">Guard Active</div>
-            <div id="session-badge" class="status-badge badge-guard-inactive">Session Off</div>
-            <a href="/logout"
-                style="color: var(--danger); text-decoration: none; font-size: 0.8rem; font-weight: 600; margin-left: 1rem; border: 1px solid var(--danger); padding: 0.2rem 0.6rem; border-radius: 6px; transition: all 0.3s;"
-                onmouseover="this.style.background='var(--danger)'; this.style.color='white'"
-                onmouseout="this.style.background='transparent'; this.style.color='var(--danger)'">Logout</a>
-        </div>
-    </header>
+                <div class="status-row">
+                    <span id="status-dot" class="dot disconnected"></span>
+                    <span id="status-text">Disconnected</span>
+                </div>
 
-    <!-- Dashboard View -->
-    <div id="dashboard-view" class="view active">
-        <div style="padding: 2rem; display: flex; flex-direction: column; gap: 2rem; overflow-y: auto;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                <h2 style="font-size: 1.5rem; font-weight: 600;">Security Overview</h2>
-                <div
-                    style="display: flex; gap: 0.5rem; align-items: center; background: var(--card); padding: 0.5rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.1);">
-                    <span style="font-size: 0.85rem; color: var(--muted); margin-left: 0.5rem;">Time Range:</span>
-                    <select id="time-filter" onchange="filterStats()"
-                        style="background: transparent; border: none; color: var(--text); font-family: inherit; font-size: 0.9rem; outline: none; cursor: pointer; padding: 0.2rem 0.5rem;">
-                        <option value="0" style="background: var(--bg);">All Time</option>
-                        <option value="30" style="background: var(--bg);">Last 30 Days</option>
-                        <option value="60" style="background: var(--bg);">Last 60 Days</option>
-                        <option value="90" style="background: var(--bg);">Last 90 Days</option>
-                        <option value="180" style="background: var(--bg);">Last 180 Days</option>
-                    </select>
+                <div class="qr-shell">
+                    <div id="qr-container" class="qr-copy">Waiting for QR code...</div>
+                </div>
+
+                <div class="actions">
+                    <button class="primary" onclick="socket.emit('wa-reconnect')">Reconnect</button>
+                    <button class="secondary" onclick="socket.emit('wa-clear-session')">Reset Session</button>
+                    <button class="danger" onclick="socket.emit('wa-stop')">Stop</button>
+                    <a class="logout-link secondary" href="/logout">Logout</a>
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem;">
+            <div class="panel">
+                <h2>Webhook wiring</h2>
+                <p>Incoming messages are forwarded to n8n. n8n sends replies back with the outbound API.</p>
 
-                <div
-                    style="background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 1.25rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);">
-                    <div style="color: var(--muted); font-size: 0.9rem; margin-bottom: 0.5rem; font-weight: 600;">Total
-                        AI Guard Checks</div>
-                    <div id="stat-total" style="font-size: 2.5rem; font-weight: 700; color: var(--primary);">0</div>
-                </div>
-                <div
-                    style="background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 1.25rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);">
-                    <div style="color: var(--muted); font-size: 0.9rem; margin-bottom: 0.5rem; font-weight: 600;">
-                        Blocked Violations</div>
-                    <div id="stat-blocked" style="font-size: 2.5rem; font-weight: 700; color: var(--danger);">0</div>
-                </div>
-                <div
-                    style="background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 1.25rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);">
-                    <div style="color: var(--muted); font-size: 0.9rem; margin-bottom: 0.5rem; font-weight: 600;">Block
-                        Rate</div>
-                    <div id="stat-rate" style="font-size: 2.5rem; font-weight: 700; color: var(--warning);">0%</div>
-                </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
-                <div
-                    style="background: var(--card); border: 1px solid rgba(255,255,255,0.1); padding: 2rem; border-radius: 1.25rem;">
-                    <h3 style="margin-bottom: 1.5rem; font-size: 1.1rem; opacity: 0.8;">Requests per Channel</h3>
-                    <div style="height: 300px; position: relative;">
-                        <canvas id="chart-mobile"></canvas>
+                <div class="info-list">
+                    <div class="info-card">
+                        <strong>Incoming webhook target</strong>
+                        <code id="incoming-config">Checking configuration...</code>
+                    </div>
+                    <div class="info-card">
+                        <strong>Send API</strong>
+                        <code>POST /api/whatsapp/send</code>
+                    </div>
+                    <div class="info-card">
+                        <strong>Auth</strong>
+                        <code>Authorization: Bearer N8N_API_KEY</code>
                     </div>
                 </div>
-                <div
-                    style="background: var(--card); border: 1px solid rgba(255,255,255,0.1); padding: 2rem; border-radius: 1.25rem;">
-                    <h3 style="margin-bottom: 1.5rem; font-size: 1.1rem; opacity: 0.8;">Security Distribution</h3>
-                    <div style="height: 300px; position: relative;">
-                        <canvas id="chart-security"></canvas>
+
+                <div class="feed" id="feed">
+                    <div class="feed-item">
+                        <small>Bridge</small>
+                        Waiting for message events...
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Chat View -->
-    <div id="chat-view" class="view">
-        <div id="chat-container">
-            <div class="message system" id="initial-system-msg">Initializing Secure Gateway...</div>
-        </div>
-        <div class="controls-wrapper">
-            <div class="image-preview-container" id="image-preview-container">
-                <img id="image-preview" class="image-preview" src="" alt="Preview">
-                <button class="image-preview-remove" onclick="clearImage()">x</button>
-            </div>
-            <div class="controls-row">
-                <button class="btn-outline" onclick="toggleGuard()">🛡️ Guard</button>
-                <button class="btn-outline" onclick="toggleSession()">🧠 Session</button>
-                <input type="file" id="image-input" accept="image/*" style="display: none;"
-                    onchange="handleImageSelect(event)">
-                <button class="image-upload-btn" onclick="document.getElementById('image-input').click()"
-                    style="display: none;">📷</button>
-                <input type="text" id="user-input" placeholder="Type a message to Gemini..."
-                    onkeypress="if(event.key === 'Enter') sendMessage()">
-                <button onclick="sendMessage()">Send</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Auth View -->
-    <div id="auth-view" class="view">
-        <div class="auth-content">
-
-            <!-- Stage 1: Initialized (not connected) -->
-            <div id="wa-stage-init">
-                <div style="margin-bottom: 1.5rem;">
-                    <div id="wa-status-pill"
-                        style="display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(100, 116, 139, 0.1); border: 1px solid var(--muted); padding: 0.5rem 1.25rem; border-radius: 999px; margin-bottom: 1rem;">
-                        <span id="wa-init-dot" class="status-dot dot-disconnected"
-                            style="width: 10px; height: 10px;"></span>
-                        <span id="wa-init-status" style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">Not
-                            Connected</span>
-                    </div>
-                    <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Link WhatsApp</h2>
-                    <p style="opacity: 0.5; font-size: 0.9rem;">Click Connect to generate a QR code, then scan it with
-                        WhatsApp.</p>
-                </div>
-
-                <div id="qr-container" class="qr-card" style="display: none;">
-                    <canvas id="qr-canvas"></canvas>
-                    <p style="color: #0f172a; font-weight: 600; margin-top: 1rem; font-size: 0.9rem;">Scan with WhatsApp
-                    </p>
-                </div>
-
-                <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem;">
-                    <button id="connect-btn" onclick="reconnect()" style="padding: 0.85rem 2.5rem; font-size: 1rem;">📱
-                        Connect</button>
-                    <button id="stop-btn" class="btn-danger" style="display: none;" onclick="stopWA()">⏹ Stop</button>
-                    <button id="clear-session-btn" class="btn-outline"
-                        style="border-color: var(--warning); color: var(--warning); display: none;"
-                        onclick="clearSession()">🔄 Clear & Refresh QR</button>
-                </div>
-            </div>
-
-            <!-- Stage 2: Connected -->
-            <div id="wa-stage-connected" style="display: none;">
-                <div
-                    style="background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 1.5rem; padding: 2.5rem; max-width: 400px; text-align: center;">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
-                    <h2 style="font-size: 1.5rem; margin-bottom: 0.75rem; color: var(--success);">WhatsApp Linked</h2>
-                    <p style="opacity: 0.5; font-size: 0.9rem; margin-bottom: 2rem;">Your session is active. Messages
-                        are being received and processed.</p>
-                    <button class="btn-danger" onclick="logout()" style="width: 100%; justify-content: center;">Logout &
-                        Unlink</button>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- Logs View -->
-    <div id="logs-view" class="view">
-        <div id="log-container" style="padding: 2rem; overflow-y: auto; font-family: monospace; font-size: 0.85rem;">
-            <div style="color: var(--muted); margin-bottom: 1rem;">Waiting for intercepted traffic...</div>
-        </div>
-    </div>
-
-    <!-- Console View -->
-    <div id="console-view" class="view">
-        <div id="console-container"
-            style="padding: 1.5rem; overflow-y: auto; font-family: 'Courier New', Courier, monospace; font-size: 0.8rem; background: #050a15; flex: 1;">
-            <div style="color: #4ade80; margin-bottom: 0.5rem;">[System] Web Console Log Stream Started.</div>
-        </div>
-    </div>
-
-    <!-- Settings View -->
-    <div id="settings-view" class="view">
-        <div style="padding: 2.5rem; max-width: 600px;">
-            <h2 style="margin-bottom: 1.5rem;">WhatsApp Allowlist</h2>
-            <p style="color: var(--muted); margin-bottom: 2rem;">Only phone numbers in this list can interact with the
-                WhatsApp bot. Leave empty to allow everyone.</p>
-
-            <div
-                style="background: var(--card); padding: 1.5rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.1);">
-                <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
-                    <input type="text" id="allowlist-input" placeholder="Enter number (e.g. 852xxxx...)"
-                        style="flex: 1;">
-                    <button onclick="addNumber()" style="padding: 0.8rem 1.5rem;">Add</button>
-                </div>
-
-                <div id="allowlist-container" style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
-                    <!-- Numbers will be added here -->
-                </div>
-            </div>
-
-            <div style="margin-top: 2rem;">
-                <button onclick="saveAllowlist()" style="width: 100%; justify-content: center; padding: 1rem;">Save &
-                    Apply Changes</button>
-                <p id="save-status"
-                    style="text-align: center; margin-top: 1rem; font-size: 0.85rem; color: var(--success); display: none;">
-                    ✅ Changes saved successfully!</p>
-            </div>
-        </div>
-    </div>
+        </section>
+    </main>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        const chatContainer = document.getElementById('chat-container');
-        const logContainer = document.getElementById('log-container');
-        const consoleContainer = document.getElementById('console-container');
-        const allowlistContainer = document.getElementById('allowlist-container');
-        const allowlistInput = document.getElementById('allowlist-input');
-        const guardBadge = document.getElementById('guard-badge');
-        const userInput = document.getElementById('user-input');
-
-        let mobileChart = null;
-        let securityChart = null;
-
-        let currentAllowlist = [];
-
-        // WhatsApp Elements
-        const waHeaderStatus = document.getElementById('wa-header-status');
         const qrContainer = document.getElementById('qr-container');
-        const qrCanvas = document.getElementById('qr-canvas');
-        const stageInit = document.getElementById('wa-stage-init');
-        const stageConnected = document.getElementById('wa-stage-connected');
-        const waInitDot = document.getElementById('wa-init-dot');
-        const waInitStatus = document.getElementById('wa-init-status');
-        const waStatusPill = document.getElementById('wa-status-pill');
-        const connectBtn = document.getElementById('connect-btn');
-        const stopBtn = document.getElementById('stop-btn');
-        const clearSessionBtn = document.getElementById('clear-session-btn');
-        const authTabBtn = document.getElementById('auth-tab-btn');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const incomingConfig = document.getElementById('incoming-config');
+        const feed = document.getElementById('feed');
 
-        // Image upload state
-        let selectedImage = null; // { mimeType: string, data: string }
-        const imagePreviewContainer = document.getElementById('image-preview-container');
-        const imagePreview = document.getElementById('image-preview');
-        const imageInput = document.getElementById('image-input');
-
-        // WhatsApp State tracking
-        let currentQr = null;
-
-        // Socket Handlers
-        socket.on('response', (data) => {
-            appendMessage(data.text, 'ai', false, data.image);
-        });
-        socket.on('blocked', (data) => appendMessage(data.text, 'ai', true));
-        socket.on('wa-comm', (data) => {
-            const prefix = data.role === 'user' ? `[WA: ${data.sender}] ` : `[AI -> WA: ${data.sender}] `;
-            appendMessage(prefix + data.text, data.role === 'user' ? 'user' : 'ai');
-        });
-        socket.on('dashboard-stats', (data) => {
-            updateDashboard(data);
-        });
-        socket.on('trend-log', (data) => {
-            // Real-time security logs
-            appendLog({
-                timestamp: new Date().toISOString(),
-                event: 'security_check',
-                channel: data.source || 'web',
-                prompt: data.text,
-                action: data.result.action,
-                reasons: data.result.reasons || [],
-                request: data.request,
-                result: data.result
-            });
-            // Refresh dashboard to reflect new event
-            filterStats();
-        });
-
-        socket.on('console-log', (log) => {
-            appendConsoleLog(log);
-        });
-
-        socket.on('console-history', (data) => {
-            consoleContainer.innerHTML = '';
-            if (data.logs) {
-                data.logs.forEach(log => appendConsoleLog(log));
-            }
-        });
-
-        socket.on('allowlist', (data) => {
-            currentAllowlist = data.list || [];
-            renderAllowlist();
-        });
-
-        function renderAllowlist() {
-            allowlistContainer.innerHTML = '';
-            currentAllowlist.forEach((num, index) => {
-                const tag = document.createElement('div');
-                tag.style.background = 'rgba(56, 189, 248, 0.1)';
-                tag.style.border = '1px solid var(--primary)';
-                tag.style.color = 'var(--primary)';
-                tag.style.padding = '0.4rem 0.8rem';
-                tag.style.borderRadius = '999px';
-                tag.style.fontSize = '0.85rem';
-                tag.style.display = 'flex';
-                tag.style.alignItems = 'center';
-                tag.style.gap = '0.5rem';
-
-                const numberSpan = document.createElement('span');
-                numberSpan.innerText = num;
-                tag.appendChild(numberSpan);
-
-                const removeSpan = document.createElement('span');
-                removeSpan.innerText = '×';
-                removeSpan.style.cursor = 'pointer';
-                removeSpan.style.opacity = '0.6';
-                removeSpan.addEventListener('click', () => removeNumber(index));
-                tag.appendChild(removeSpan);
-
-                allowlistContainer.appendChild(tag);
-            });
-        }
-
-        function addNumber() {
-            const val = allowlistInput.value.trim();
-            if (val && !currentAllowlist.includes(val)) {
-                currentAllowlist.push(val);
-                renderAllowlist();
-                allowlistInput.value = '';
-            }
-        }
-
-        function removeNumber(index) {
-            currentAllowlist.splice(index, 1);
-            renderAllowlist();
-        }
-
-        function saveAllowlist() {
-            socket.emit('update-allowlist', { list: currentAllowlist });
-            const status = document.getElementById('save-status');
-            status.style.display = 'block';
-            setTimeout(() => status.style.display = 'none', 3000);
-        }
-
-        socket.on('audit-logs', (data) => {
-            logContainer.innerHTML = '';
-            if (!data.logs || data.logs.length === 0) {
-                const emptyDiv = document.createElement('div');
-                emptyDiv.style.color = 'var(--muted)';
-                emptyDiv.style.marginBottom = '1rem';
-                emptyDiv.innerText = 'No audit logs found.';
-                logContainer.appendChild(emptyDiv);
-                return;
-            }
-            // Sort by timestamp to ensure chronological append
-            data.logs.forEach(log => appendLog(log));
-        });
-
-        const sessionBadge = document.getElementById('session-badge');
-
-        socket.on('status', (data) => {
-            guardBadge.innerText = data.isGuardEnabled ? 'Guard Active' : 'Guard Disabled';
-            guardBadge.className = `status-badge ${data.isGuardEnabled ? 'badge-guard-active' : 'badge-guard-inactive'}`;
-
-            sessionBadge.innerText = data.isSessionEnabled ? 'Session On' : 'Session Off';
-            sessionBadge.className = `status-badge ${data.isSessionEnabled ? 'badge-guard-active' : 'badge-guard-inactive'}`;
-
-            const statusMsg = data.isGuardEnabled
-                ? '🛡️ Secure Gateway Online. Trend Vision One monitoring active.'
-                : '⚠️ Secure Gateway Online. Trend Vision One monitoring DISABLED.';
-
-            // Update or append system message
-            const initialMsg = document.getElementById('initial-system-msg');
-            if (initialMsg) {
-                initialMsg.innerText = statusMsg;
-                initialMsg.removeAttribute('id'); // Only update the first one found
-            } else {
-                appendMessage(statusMsg, 'system');
-            }
-        });
-
-        socket.on('wa-status', (data) => {
-            console.log('WA Status:', data.status);
-            updateWAUI(data.status);
-        });
-
-        socket.on('wa-qr', (data) => {
-            console.log('QR Received');
-            currentQr = data.qr;
-            qrContainer.style.display = 'block';
-            QRCode.toCanvas(qrCanvas, data.qr, { width: 250 }, (error) => {
-                if (error) console.error(error);
-            });
-        });
-
-        function updateWAUI(status) {
-            waHeaderStatus.innerText = `WhatsApp: ${status}`;
+        function setStatus(status) {
+            statusDot.className = `dot ${status}`;
+            statusText.textContent = status.charAt(0).toUpperCase() + status.slice(1);
 
             if (status === 'connected') {
-                stageInit.style.display = 'none';
-                stageConnected.style.display = 'block';
-                authTabBtn.style.color = 'var(--success)';
-            } else {
-                stageInit.style.display = 'block';
-                stageConnected.style.display = 'none';
-
-                if (status === 'connecting') {
-                    waStatusPill.style.background = 'rgba(245, 158, 11, 0.1)';
-                    waStatusPill.style.borderColor = 'var(--warning)';
-                    waInitDot.className = 'status-dot dot-connecting';
-                    waInitStatus.innerText = 'Connecting...';
-                    waInitStatus.style.color = 'var(--warning)';
-                    authTabBtn.style.color = 'var(--warning)';
-
-                    // Show container immediately to signal activity
-                    qrContainer.style.display = 'block';
-                    if (!currentQr) {
-                        const ctx = qrCanvas.getContext('2d');
-                        ctx.clearRect(0, 0, qrCanvas.width, qrCanvas.height);
-                        ctx.fillStyle = '#64748b'; // var(--muted)
-                        ctx.font = '14px Outfit, sans-serif';
-                        ctx.textAlign = 'center';
-                        ctx.fillText('Generating QR...', qrCanvas.width / 2, qrCanvas.height / 2);
-                    } else {
-                        // Re-render current QR if we have it
-                        QRCode.toCanvas(qrCanvas, currentQr, { width: 250 }, (error) => {
-                            if (error) console.error(error);
-                        });
-                    }
-
-                    // Show stop/clear, hide connect
-                    connectBtn.style.display = 'none';
-                    stopBtn.style.display = 'flex';
-                    clearSessionBtn.style.display = 'flex';
-                } else {
-                    currentQr = null; // Clear on disconnection/connection
-                    waStatusPill.style.background = 'rgba(100, 116, 139, 0.1)';
-                    waStatusPill.style.borderColor = 'var(--muted)';
-                    waInitDot.className = 'status-dot dot-disconnected';
-                    waInitStatus.innerText = 'Not Connected';
-                    waInitStatus.style.color = 'var(--muted)';
-                    authTabBtn.style.color = 'var(--danger)';
-                    // Show connect, hide stop/clear
-                    connectBtn.style.display = 'flex';
-                    stopBtn.style.display = 'none';
-                    clearSessionBtn.style.display = 'none';
-                    qrContainer.style.display = 'none';
-                }
+                qrContainer.innerHTML = '<div class="qr-copy">WhatsApp is connected.</div>';
+            } else if (status === 'connecting') {
+                qrContainer.innerHTML = '<div class="qr-copy">Connecting to WhatsApp...</div>';
             }
         }
 
-        // Image handling
-        function handleImageSelect(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+        function prependFeed(title, message) {
+            const item = document.createElement('div');
+            item.className = 'feed-item';
+            item.innerHTML = `<small>${title}</small>${message}`;
+            feed.prepend(item);
 
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const dataUrl = e.target.result;
-                const base64 = dataUrl.split(',')[1];
-                selectedImage = {
-                    mimeType: file.type,
-                    data: base64
-                };
-                imagePreview.src = dataUrl;
-                imagePreviewContainer.style.display = 'inline-block';
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function clearImage() {
-            selectedImage = null;
-            imagePreview.src = '';
-            imagePreviewContainer.style.display = 'none';
-            imageInput.value = '';
-        }
-
-        // Actions
-        function sendMessage() {
-            const text = userInput.value.trim();
-            if (!text && !selectedImage) return;
-
-            // Show user message with image preview if any
-            if (selectedImage) {
-                appendMessage(text || '[Image]', 'user', false, selectedImage);
-            } else {
-                appendMessage(text, 'user');
-            }
-
-            socket.emit('message', {
-                text,
-                image: selectedImage
-            });
-
-            userInput.value = '';
-            clearImage();
-        }
-
-        function toggleGuard() { socket.emit('toggle-guard'); }
-        function toggleSession() { socket.emit('toggle-session'); }
-        function logout() { socket.emit('wa-logout'); }
-        function reconnect() { socket.emit('wa-reconnect'); }
-        function stopWA() { socket.emit('wa-stop'); }
-        function clearSession() {
-            if (confirm('Are you sure you want to clear the session files? This will log you out completely.')) {
-                socket.emit('wa-clear-session');
+            while (feed.children.length > 8) {
+                feed.removeChild(feed.lastChild);
             }
         }
 
-        function switchView(view, el) {
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        socket.on('wa-status', ({ status }) => {
+            setStatus(status);
+            prependFeed('Status', `WhatsApp status changed to <strong>${status}</strong>.`);
+        });
 
-            document.getElementById(`${view}-view`).classList.add('active');
-            if (el) el.classList.add('active');
-        }
+        socket.on('wa-qr', ({ qr }) => {
+            if (!qr) return;
+            qrContainer.innerHTML = '';
+            QRCode.toCanvas(qrContainer, qr, { width: 280, margin: 1 });
+        });
 
-        function appendMessage(text, role, isBlocked = false, image = null) {
-            const div = document.createElement('div');
-            div.className = `message ${role}`;
-            if (isBlocked) div.style.borderColor = 'var(--danger)';
+        socket.on('webhook-config', ({ incomingWebhookConfigured }) => {
+            incomingConfig.textContent = incomingWebhookConfigured
+                ? 'WHATSAPP_INCOMING_WEBHOOK_URL configured'
+                : 'WHATSAPP_INCOMING_WEBHOOK_URL not configured';
+        });
 
-            // Add text content
-            if (text) {
-                const textSpan = document.createElement('span');
-                textSpan.innerText = text;
-                div.appendChild(textSpan);
-            }
+        socket.on('inbound-message', ({ sender, text, hasImage }) => {
+            const summary = text || (hasImage ? '[image only]' : '[empty]');
+            prependFeed('Inbound', `From <strong>${sender}</strong>: ${summary}`);
+        });
 
-            // Add image if present
-            if (image && image.data) {
-                const img = document.createElement('img');
-                img.src = `data:${image.mimeType};base64,${image.data}`;
-                img.className = 'message-image';
-                img.alt = 'Image';
-                div.appendChild(img);
-            }
-
-            chatContainer.appendChild(div);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-
-        function appendLog(log) {
-            if (logContainer.firstElementChild && logContainer.firstElementChild.innerText === 'Waiting for intercepted traffic...') {
-                logContainer.innerHTML = '';
-            }
-
-            const div = document.createElement('div');
-            div.style.marginBottom = '1rem';
-            div.style.padding = '1rem';
-            div.style.background = 'rgba(255,255,255,0.03)';
-            div.style.borderRadius = '0.5rem';
-
-            const timestamp = new Date(log.timestamp).toLocaleTimeString();
-            let eventColor = 'var(--primary)';
-            let statusBadge = '';
-
-            if (log.event === 'security_check') {
-                const action = log.action || 'allow';
-                const isBlock = action.toLowerCase() === 'block';
-                eventColor = isBlock ? 'var(--danger)' : 'var(--success)';
-                statusBadge = `[${action.toUpperCase()}]`;
-                div.style.borderLeft = `4px solid ${eventColor}`;
-            } else if (log.event === 'whatsapp_connection') {
-                const isOk = log.status === 'connected';
-                eventColor = isOk ? 'var(--success)' : 'var(--danger)';
-                div.style.borderLeft = `4px solid ${eventColor}`;
-            } else if (log.event === 'message_blocked') {
-                eventColor = 'var(--danger)';
-                div.style.borderLeft = `4px solid ${eventColor}`;
-            }
-
-            const header = document.createElement('div');
-            header.style.marginBottom = '0.5rem';
-            header.style.fontSize = '0.75rem';
-
-            const timestampSpan = document.createElement('span');
-            timestampSpan.style.color = 'var(--muted)';
-            timestampSpan.innerText = `[${timestamp}] `;
-            header.appendChild(timestampSpan);
-
-            const eventSpan = document.createElement('span');
-            eventSpan.style.color = 'var(--primary)';
-            eventSpan.innerText = `[${String(log.event || 'unknown').toUpperCase()}] `;
-            header.appendChild(eventSpan);
-
-            if (log.channel) {
-                const channelSpan = document.createElement('span');
-                channelSpan.style.color = 'var(--secondary)';
-                channelSpan.innerText = `[${log.channel}] `;
-                header.appendChild(channelSpan);
-            }
-
-            if (statusBadge) {
-                const statusSpan = document.createElement('span');
-                statusSpan.style.color = eventColor;
-                statusSpan.innerText = statusBadge;
-                header.appendChild(statusSpan);
-            }
-
-            div.appendChild(header);
-
-            if (log.event === 'security_check' || log.event === 'message_received' || log.event === 'message_blocked') {
-                if (log.prompt) {
-                    const promptDiv = document.createElement('div');
-                    promptDiv.style.color = 'var(--text)';
-                    promptDiv.style.fontWeight = '600';
-                    promptDiv.style.marginBottom = '0.5rem';
-                    promptDiv.innerText = `Prompt: "${log.prompt}"`;
-                    div.appendChild(promptDiv);
-                }
-                if (log.sender) {
-                    const senderDiv = document.createElement('div');
-                    senderDiv.style.fontSize = '0.75rem';
-                    senderDiv.style.color = 'var(--muted)';
-                    senderDiv.style.marginBottom = '0.5rem';
-                    senderDiv.innerText = `From: ${log.sender}`;
-                    div.appendChild(senderDiv);
-                }
-            }
-
-            if (log.event === 'security_check') {
-                if (log.reasons && log.reasons.length > 0) {
-                    const reasonsDiv = document.createElement('div');
-                    reasonsDiv.style.fontSize = '0.75rem';
-                    reasonsDiv.style.color = 'var(--warning)';
-                    reasonsDiv.style.marginBottom = '0.5rem';
-                    reasonsDiv.innerText = `Reasons: ${log.reasons.join(', ')}`;
-                    div.appendChild(reasonsDiv);
-                }
-                if (log.result) {
-                    const detailsWrap = document.createElement('div');
-                    detailsWrap.style.marginTop = '0.75rem';
-                    const details = document.createElement('details');
-                    const summary = document.createElement('summary');
-                    summary.style.fontSize = '0.7rem';
-                    summary.style.color = 'var(--muted)';
-                    summary.style.cursor = 'pointer';
-                    summary.innerText = 'VIEW DETAILS';
-                    const pre = document.createElement('pre');
-                    pre.style.marginTop = '0.5rem';
-                    pre.style.padding = '0.5rem';
-                    pre.style.background = 'rgba(0,0,0,0.2)';
-                    pre.style.borderRadius = '0.25rem';
-                    pre.style.opacity = '0.8';
-                    pre.style.overflowX = 'auto';
-                    pre.style.maxHeight = '150px';
-                    pre.style.fontSize = '0.75rem';
-                    pre.innerText = JSON.stringify(log.result, null, 2);
-                    details.appendChild(summary);
-                    details.appendChild(pre);
-                    detailsWrap.appendChild(details);
-                    div.appendChild(detailsWrap);
-                }
-            } else if (log.event === 'whatsapp_connection') {
-                const statusDiv = document.createElement('div');
-                statusDiv.style.color = 'var(--text)';
-                statusDiv.innerText = 'WhatsApp Status: ';
-                const statusText = document.createElement('span');
-                statusText.style.color = eventColor;
-                statusText.innerText = log.status;
-                statusDiv.appendChild(statusText);
-                div.appendChild(statusDiv);
-                if (log.reason) {
-                    const reasonDiv = document.createElement('div');
-                    reasonDiv.style.fontSize = '0.75rem';
-                    reasonDiv.style.color = 'var(--muted)';
-                    reasonDiv.style.marginTop = '0.25rem';
-                    reasonDiv.innerText = `Reason: ${log.reason}`;
-                    div.appendChild(reasonDiv);
-                }
-            } else if (log.event === 'guard_toggle') {
-                const source = log.source === 'web_ui' ? 'Web' : (log.sender || 'Unknown');
-                const toggleDiv = document.createElement('div');
-                toggleDiv.style.color = 'var(--text)';
-                toggleDiv.innerText = 'Security Guard toggled ';
-                const enabledSpan = document.createElement('span');
-                enabledSpan.style.color = log.enabled ? 'var(--success)' : 'var(--danger)';
-                enabledSpan.innerText = log.enabled ? 'ON' : 'OFF';
-                toggleDiv.appendChild(enabledSpan);
-                div.appendChild(toggleDiv);
-
-                const sourceDiv = document.createElement('div');
-                sourceDiv.style.fontSize = '0.75rem';
-                sourceDiv.style.color = 'var(--muted)';
-                sourceDiv.style.marginTop = '0.25rem';
-                sourceDiv.innerText = `Source: ${source}`;
-                div.appendChild(sourceDiv);
-            } else if (log.event === 'session_toggle') {
-                const source = log.source === 'web_ui' ? 'Web' : (log.sender || 'Unknown');
-                const sessionDiv = document.createElement('div');
-                sessionDiv.style.color = 'var(--text)';
-                sessionDiv.innerText = 'Session Memory toggled ';
-                const enabledSpan = document.createElement('span');
-                enabledSpan.style.color = log.enabled ? 'var(--success)' : 'var(--danger)';
-                enabledSpan.innerText = log.enabled ? 'ON' : 'OFF';
-                sessionDiv.appendChild(enabledSpan);
-                div.appendChild(sessionDiv);
-
-                const sourceDiv = document.createElement('div');
-                sourceDiv.style.fontSize = '0.75rem';
-                sourceDiv.style.color = 'var(--muted)';
-                sourceDiv.style.marginTop = '0.25rem';
-                sourceDiv.innerText = `Source: ${source}`;
-                div.appendChild(sourceDiv);
-            }
-
-            logContainer.prepend(div);
-        }
-
-        function appendConsoleLog(log) {
-            const div = document.createElement('div');
-            div.style.marginBottom = '0.3rem';
-            div.style.lineHeight = '1.4';
-            div.style.whiteSpace = 'pre-wrap';
-            div.style.wordBreak = 'break-all';
-
-            const timestamp = new Date(log.timestamp).toLocaleTimeString();
-            const color = log.type === 'error' ? '#f87171' : '#cbd5e1';
-            const prefix = log.type === 'error' ? '[ERR]' : '[LOG]';
-
-            const tsSpan = document.createElement('span');
-            tsSpan.style.color = '#64748b';
-            tsSpan.innerText = `[${timestamp}] `;
-            div.appendChild(tsSpan);
-
-            const prefixSpan = document.createElement('span');
-            prefixSpan.style.color = color;
-            prefixSpan.style.fontWeight = 'bold';
-            prefixSpan.innerText = `${prefix} `;
-            div.appendChild(prefixSpan);
-
-            const messageSpan = document.createElement('span');
-            messageSpan.style.color = color;
-            messageSpan.innerText = String(log.message || '');
-            div.appendChild(messageSpan);
-
-            consoleContainer.appendChild(div);
-            // Auto scroll to bottom
-            consoleContainer.scrollTop = consoleContainer.scrollHeight;
-        }
-
-        function updateDashboard(stats) {
-            document.getElementById('stat-total').innerText = stats.totalRequests;
-            document.getElementById('stat-blocked').innerText = stats.blockedRequests;
-            const rate = stats.totalRequests === 0 ? 0 : ((stats.blockedRequests / stats.totalRequests) * 100).toFixed(1);
-            document.getElementById('stat-rate').innerText = rate + '%';
-
-            // Update Mobile Chart
-            const mobileLabels = Object.keys(stats.mobileStats);
-            const mobileData = mobileLabels.map(l => stats.mobileStats[l].total);
-            const mobileBlocked = mobileLabels.map(l => stats.mobileStats[l].blocked);
-
-            if (!mobileChart) {
-                const ctx = document.getElementById('chart-mobile').getContext('2d');
-                mobileChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: mobileLabels,
-                        datasets: [
-                            {
-                                label: 'Total Requests',
-                                data: mobileData,
-                                backgroundColor: '#38bdf8',
-                                borderRadius: 8
-                            },
-                            {
-                                label: 'Blocked',
-                                data: mobileBlocked,
-                                backgroundColor: '#ef4444',
-                                borderRadius: 8
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: true, labels: { color: '#64748b' } }
-                        },
-                        scales: {
-                            x: { grid: { display: false }, ticks: { color: '#64748b' } },
-                            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } }
-                        }
-                    }
-                });
-            } else {
-                mobileChart.data.labels = mobileLabels;
-                mobileChart.data.datasets[0].data = mobileData;
-                mobileChart.data.datasets[1].data = mobileBlocked;
-                mobileChart.update();
-            }
-
-            // Update Security Chart
-            if (!securityChart) {
-                const ctx = document.getElementById('chart-security').getContext('2d');
-                securityChart = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Allowed', 'Blocked'],
-                        datasets: [{
-                            data: [stats.totalRequests - stats.blockedRequests, stats.blockedRequests],
-                            backgroundColor: ['#22c55e', '#ef4444'],
-                            borderWidth: 0,
-                            hoverOffset: 4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        cutout: '70%',
-                        plugins: {
-                            legend: { position: 'bottom', labels: { color: '#64748b', padding: 20 } }
-                        }
-                    }
-                });
-            } else {
-                securityChart.data.datasets[0].data = [stats.totalRequests - stats.blockedRequests, stats.blockedRequests];
-                securityChart.update();
-            }
-        }
-
-        function filterStats() {
-            const days = parseInt(document.getElementById('time-filter').value);
-            socket.emit('get-stats', { days });
-        }
+        socket.on('outbound-message', ({ to, text, hasImage }) => {
+            const summary = text || (hasImage ? '[image only]' : '[empty]');
+            prependFeed('Outbound', `To <strong>${to}</strong>: ${summary}`);
+        });
     </script>
 </body>
 

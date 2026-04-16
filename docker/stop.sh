@@ -1,3 +1,3 @@
 #!/bin/bash
-sudo docker stop ai-guard
-sudo docker rm ai-guard
+sudo docker stop whatsapp-bridge
+sudo docker rm whatsapp-bridge

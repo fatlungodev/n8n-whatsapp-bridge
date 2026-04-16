@@ -1,9 +1,9 @@
 services:
-  trend-ai-guard:
+  whatsapp-bridge:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    container_name: ai-guard
+    container_name: whatsapp-bridge
     restart: unless-stopped
     ports:
       - "3000:3000"

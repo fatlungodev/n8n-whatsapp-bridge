@@ -1,16 +1,11 @@
 # Use a lightweight Node.js image
 FROM node:22-alpine
 
-# Install git for cloning
-RUN apk add --no-cache git
-
 # Set working directory
 WORKDIR /app
 
-# Clone the repository
-# Default to the current origin, but allow override via build-arg
-ARG REPO_URL=https://github.com/fatlungodev/Trend-AI-guard-demo.git
-RUN git clone ${REPO_URL} .
+# Copy the current workspace into the image
+COPY . .
 
 # Install production dependencies
 RUN npm install --omit=dev

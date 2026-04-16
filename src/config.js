@@ -1,19 +1,18 @@
 import dotenv from 'dotenv';
+
 dotenv.config();
 
 export const config = {
-    geminiApiKey: process.env.GEMINI_API_KEY,
-    v1ApiKey: process.env.V1_API_KEY,
-    v1BaseUrl: process.env.V1_BASE_URL || 'https://api.xdr.trendmicro.com',
-    appName: process.env.APP_NAME || 'whatsapp-internal-bot',
-    isGuardEnabled: true, // Default state
-    whatsappAllowList: (process.env.WHATSAPP_ALLOW_LIST || '').split(',').map(n => n.trim()).filter(n => n),
-    geminiProxy: process.env.GEMINI_HTTPS_PROXY || process.env.GEMINI_HTTP_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY,
-    v1Proxy: process.env.V1_HTTPS_PROXY || process.env.V1_HTTP_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY,
-    // Gemini model names
-    geminiTextModel: process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash',
-    geminiImageModel: process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash',
+    port: Number(process.env.PORT || 3000),
     webPassword: process.env.WEB_PASSWORD || 'admin',
-    sessionSecret: process.env.SESSION_SECRET || 'trend-ai-guard-secret',
-    disableLogin: process.env.DISABLE_LOGIN === 'true'
+    sessionSecret: process.env.SESSION_SECRET || 'whatsapp-bridge-secret',
+    disableLogin: process.env.DISABLE_LOGIN === 'true',
+    n8nApiKey: process.env.N8N_API_KEY || '',
+    whatsappAllowList: (process.env.WHATSAPP_ALLOW_LIST || '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean),
+    whatsappIncomingWebhookUrl: process.env.WHATSAPP_INCOMING_WEBHOOK_URL || '',
+    whatsappIncomingWebhookSecretHeader: process.env.WHATSAPP_INCOMING_WEBHOOK_SECRET_HEADER || 'x-webhook-secret',
+    whatsappIncomingWebhookSecret: process.env.WHATSAPP_INCOMING_WEBHOOK_SECRET || ''
 };

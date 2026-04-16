@@ -1,6 +1,6 @@
-# 🐳 Docker Deployment Guide
+# Docker Deployment Guide
 
-Deploy the **Trend AI Guard Demo** using Docker for a consistent and isolated environment.
+Deploy the **n8n WhatsApp bridge** using Docker for a consistent and isolated environment.
 
 > [!NOTE]
 > All commands below should be executed from the **root directory** of the project.
@@ -58,7 +58,7 @@ Quick scripts provided for building, starting, and stopping.
 
 1.  **Build the image**:
     ```bash
-    docker build -t trend-ai-guard -f docker/Dockerfile .
+    docker build -t whatsapp-bridge -f docker/Dockerfile .
     ```
 
 2.  **Prepare the environment**:
@@ -73,16 +73,16 @@ Quick scripts provided for building, starting, and stopping.
 
     ```bash
     docker run -d \
-      --name ai-guard \
+      --name whatsapp-bridge \
       -p 3000:3000 \
       -v $(pwd)/auth_session:/app/auth_session \
       -v $(pwd)/log:/app/log \
       --env-file .env \
-      trend-ai-guard
+      whatsapp-bridge
     ```
 
 ## 🔍 Monitoring & Maintenance
 
-- **View Logs**: `docker logs -f ai-guard`
-- **Stop Container**: `docker stop ai-guard`
+- **View Logs**: `docker logs -f whatsapp-bridge`
+- **Stop Container**: `docker stop whatsapp-bridge`
 - **Check Status**: `docker compose -f docker/docker-compose.yml ps`
