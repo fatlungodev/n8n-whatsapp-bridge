@@ -18,9 +18,11 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
 import { logAudit } from './services/logger.js';
+import { normalizeOutboundRequestBody } from './services/outboundPayload.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INCOMING_WEBHOOK_TIMEOUT_MS = 10000;
+const BODY_LIMIT = '25mb';
 
 let sock = null;
 let qrCode = null;
@@ -32,8 +34,24 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer);
 
-app.use(express.json({ limit: '25mb' }));
-app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+function isJsonRequest(req) {
+    return Boolean(req.is('application/json') || req.is('application/*+json'));
+}
+
+function isOutboundSendRoute(req) {
+    const pathname = (req.path || req.originalUrl || '').split('?')[0];
+    return req.method === 'POST' && pathname === '/api/whatsapp/send';
+}
+
+app.use(express.json({
+    limit: BODY_LIMIT,
+    type: (req) => !isOutboundSendRoute(req) && isJsonRequest(req)
+}));
+app.use(express.text({
+    limit: BODY_LIMIT,
+    type: (req) => isOutboundSendRoute(req) && (isJsonRequest(req) || req.is('text/*') || !req.get('content-type'))
+}));
+app.use(express.urlencoded({ extended: true, limit: BODY_LIMIT }));
 app.use(cookieParser());
 
 const sessionMiddleware = session({
@@ -157,9 +175,9 @@ function getMessageJidInfo(key = {}) {
 }
 
 function normalizeRecipient(value) {
-    if (typeof value !== 'string') return null;
+    if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'bigint') return null;
 
-    const trimmed = value.trim();
+    const trimmed = String(value).replace(/^\uFEFF/, '').trim();
     if (!trimmed) return null;
 
     if (trimmed.includes('@')) {
@@ -170,6 +188,18 @@ function normalizeRecipient(value) {
     return digits ? `${digits}@s.whatsapp.net` : null;
 }
 
+function normalizeMessageText(value) {
+    if (typeof value === 'string') {
+        return value.replace(/^\uFEFF/, '');
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+        return String(value);
+    }
+
+    return '';
+}
+
 function normalizeOutboundImage(image) {
     if (!image || typeof image !== 'object') return null;
     if (typeof image.data !== 'string' || !image.data.trim()) return null;
@@ -177,13 +207,15 @@ function normalizeOutboundImage(image) {
     return {
         data: image.data.trim(),
         mimeType: typeof image.mimeType === 'string' && image.mimeType.trim() ? image.mimeType.trim() : 'image/jpeg',
-        caption: typeof image.caption === 'string' ? image.caption : ''
+        caption: normalizeMessageText(image.caption)
     };
 }
 
 function summarizeInboundMessage(text, hasImage) {
-    if (typeof text === 'string' && text.trim()) {
-        return text.trim();
+    const normalizedText = normalizeMessageText(text);
+
+    if (normalizedText.trim()) {
+        return normalizedText.trim();
     }
 
     return hasImage ? '[image only]' : '[empty]';
@@ -196,7 +228,7 @@ async function forwardIncomingMessage(payload) {
     }
 
     const headers = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json; charset=utf-8'
     };
 
     if (config.whatsappIncomingWebhookSecret) {
@@ -234,7 +266,7 @@ async function sendWhatsAppMessage({ to, text = '', image = null }) {
         throw new Error('A valid recipient is required.');
     }
 
-    const messageText = typeof text === 'string' ? text : '';
+    const messageText = normalizeMessageText(text);
     const normalizedImage = normalizeOutboundImage(image);
 
     if (!messageText.trim() && !normalizedImage) {
@@ -314,11 +346,12 @@ app.get('/api/whatsapp/status', requireApiAuth, (req, res) => {
 
 app.post('/api/whatsapp/send', requireApiAuth, async (req, res) => {
     try {
-        const result = await sendWhatsAppMessage(req.body || {});
+        const payload = normalizeOutboundRequestBody(req.body);
+        const result = await sendWhatsAppMessage(payload);
         res.json({ ok: true, ...result });
     } catch (error) {
         console.error('Send API error:', error);
-        const statusCode = /valid recipient|required|Either text or image/.test(error.message) ? 400 : 500;
+        const statusCode = /valid recipient|required|Either text or image|Invalid request body/.test(error.message) ? 400 : 500;
         res.status(statusCode).json({ ok: false, error: error.message });
     }
 });

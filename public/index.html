@@ -237,6 +237,16 @@
             color: var(--muted);
         }
 
+        .feed-message {
+            line-height: 1.55;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .feed-message strong {
+            font-weight: 700;
+        }
+
         @media (max-width: 860px) {
             .grid {
                 grid-template-columns: 1fr;
@@ -329,8 +339,16 @@
             renderQrArea();
         }
 
+        function setQrCopy(message) {
+            qrContainer.replaceChildren();
+            const copy = document.createElement('div');
+            copy.className = 'qr-copy';
+            copy.textContent = message;
+            qrContainer.appendChild(copy);
+        }
+
         function renderQrArea() {
-            qrContainer.innerHTML = '';
+            qrContainer.replaceChildren();
 
             if (currentQr) {
                 const canvas = document.createElement('canvas');
@@ -341,29 +359,50 @@
                 }, (error) => {
                     if (error) {
                         console.error('QR render failed:', error);
-                        qrContainer.innerHTML = '<div class="qr-copy">QR render failed. Please reconnect.</div>';
+                        setQrCopy('QR render failed. Please reconnect.');
                     }
                 });
                 return;
             }
 
             if (currentStatus === 'connected') {
-                qrContainer.innerHTML = '<div class="qr-copy">WhatsApp is connected.</div>';
+                setQrCopy('WhatsApp is connected.');
                 return;
             }
 
             if (currentStatus === 'connecting') {
-                qrContainer.innerHTML = '<div class="qr-copy">Generating QR code...</div>';
+                setQrCopy('Generating QR code...');
                 return;
             }
 
-            qrContainer.innerHTML = '<div class="qr-copy">Waiting for QR code...</div>';
+            setQrCopy('Waiting for QR code...');
         }
 
-        function prependFeed(title, message) {
+        function prependFeed(title, parts) {
             const item = document.createElement('div');
             item.className = 'feed-item';
-            item.innerHTML = `<small>${title}</small>${message}`;
+
+            const label = document.createElement('small');
+            label.textContent = title;
+            item.appendChild(label);
+
+            const message = document.createElement('div');
+            message.className = 'feed-message';
+
+            for (const part of parts) {
+                if (typeof part === 'string') {
+                    message.appendChild(document.createTextNode(part));
+                    continue;
+                }
+
+                if (part && part.strong) {
+                    const strong = document.createElement('strong');
+                    strong.textContent = part.strong;
+                    message.appendChild(strong);
+                }
+            }
+
+            item.appendChild(message);
             feed.prepend(item);
 
             while (feed.children.length > 8) {
@@ -373,7 +412,7 @@
 
         socket.on('wa-status', ({ status }) => {
             setStatus(status);
-            prependFeed('Status', `WhatsApp status changed to <strong>${status}</strong>.`);
+            prependFeed('Status', ['WhatsApp status changed to ', { strong: status }, '.']);
         });
 
         socket.on('wa-qr', ({ qr }) => {
@@ -389,16 +428,16 @@
 
         socket.on('inbound-message', ({ sender, text, hasImage }) => {
             const summary = text || (hasImage ? '[image only]' : '[empty]');
-            prependFeed('Inbound', `From <strong>${sender}</strong>: ${summary}`);
+            prependFeed('Inbound', ['From ', { strong: sender }, ': ', summary]);
         });
 
         socket.on('inbound-message-ignored', ({ sender, reason }) => {
-            prependFeed('Ignored', `From <strong>${sender}</strong>: blocked by <strong>${reason}</strong>.`);
+            prependFeed('Ignored', ['From ', { strong: sender }, ': blocked by ', { strong: reason }, '.']);
         });
 
         socket.on('outbound-message', ({ to, text, hasImage }) => {
             const summary = text || (hasImage ? '[image only]' : '[empty]');
-            prependFeed('Outbound', `To <strong>${to}</strong>: ${summary}`);
+            prependFeed('Outbound', ['To ', { strong: to }, ': ', summary]);
         });
     </script>
 </body>

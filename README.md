@@ -195,6 +195,16 @@ Content-Type: application/json
 Authorization: Bearer my-bridge-api-key
 ```
 
+For n8n HTTP Request, the bridge supports these body styles:
+
+- `JSON` body mode with `application/json` using a JSON object
+- `Raw` body mode with `application/json` or `text/plain` containing the same JSON object as text
+- `application/x-www-form-urlencoded` for simple fields such as `to` and `text`
+
+Recommended: use n8n `Send Body -> JSON -> Using JSON` whenever possible. This lets n8n escape special characters correctly for quotes, backslashes, new lines, tabs, emoji, and non-Latin text.
+
+The bridge also tolerates common AI-generated raw text bodies, such as a plain-text JSON object wrapped in quotes or Markdown code fences, but valid JSON is still the expected format.
+
 ### Outbound send request body
 
 Text message example:
@@ -214,6 +224,24 @@ Text message using full JID:
   "text": "Hello from n8n"
 }
 ```
+
+Text body sent as raw `text/plain`:
+
+```text
+{
+  "to": "85263427999",
+  "text": "I'll respond as if I'm a virtual AI assistant.\n\n\"Hello!\""
+}
+```
+
+The bridge preserves special characters in `text` and `image.caption`, including:
+
+- quotes: `'` and `"`
+- backslashes: `\\`
+- new lines: `\n` and `\r\n`
+- tabs: `\t`
+- Unicode content such as emoji and Chinese text
+- HTML-sensitive characters such as `<`, `>`, and `&`
 
 Image message example:
 
@@ -318,6 +346,8 @@ Example response:
   "text": "{{$json.reply}}"
 }
 ```
+
+If `reply` may contain special characters, keep n8n in `JSON` mode. n8n will serialize the value correctly and the bridge will preserve it as-is.
 
 ### Example 2: send image
 
