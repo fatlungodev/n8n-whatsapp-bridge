@@ -13,7 +13,7 @@ Deploy the **n8n WhatsApp bridge** using Docker for a consistent and isolated en
 ## 🚀 Deployment Options
 
 > [!IMPORTANT]
-> The Docker image now clones its application source from `https://github.com/fatlungodev/n8n-whatsapp-bridge.git` during build. Local code changes in this workspace are not included unless you change the Dockerfile back or point it at a different repo.
+> The Docker image builds from the current checked-out workspace. Local code changes are included in the image, and `.dockerignore` excludes bulky runtime folders such as `node_modules`, `auth_session`, and `log`.
 
 ### Option 1: Using Shell Scripts
 
@@ -27,17 +27,17 @@ Quick scripts provided for building, starting, and stopping.
 
 2.  **Update/Build**:
     ```bash
-    sh update.sh
+    sh docker/update.sh
     ```
 
 3.  **Start**:
     ```bash
-    sh start.sh
+    sh docker/start.sh
     ```
 
 4.  **Stop & Remove**:
     ```bash
-    sh stop.sh
+    sh docker/stop.sh
     ```
 
 ---

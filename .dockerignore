@@ -1,0 +1,10 @@
+.git
+.gitignore
+.DS_Store
+.claude
+.env
+node_modules
+auth_session
+log
+test
+assets

@@ -27,14 +27,19 @@ cp .env_example .env
 | Variable | Required | Description |
 |---|---|---|
 | `PORT` | No | HTTP port. Default is `3001`. |
-| `WEB_PASSWORD` | No | Password for the web console. Default is `admin`. |
-| `SESSION_SECRET` | No | Session secret for console login. |
+| `WEB_PASSWORD` | Yes, unless `DISABLE_LOGIN=true` | Password for the web console. The app refuses to start if this is missing or left as `admin`. |
+| `SESSION_SECRET` | Yes, unless `DISABLE_LOGIN=true` | Session secret for console login. The app refuses to start if this is missing or left on an insecure default. |
 | `DISABLE_LOGIN` | No | Set to `true` to disable console login. |
-| `N8N_API_KEY` | No | API key for protected bridge APIs such as `POST /api/whatsapp/send` and `GET /api/whatsapp/status`. |
+| `N8N_API_KEY` | Yes, unless `ALLOW_UNAUTHENTICATED_API=true` | API key for protected bridge APIs such as `POST /api/whatsapp/send` and `GET /api/whatsapp/status`. |
+| `ALLOW_UNAUTHENTICATED_API` | No | Explicit opt-in to leave bridge APIs open when `N8N_API_KEY` is unset. Default is `false`. |
 | `WHATSAPP_INCOMING_WEBHOOK_URL` | Yes | n8n webhook URL that receives inbound WhatsApp messages from the bridge. |
 | `WHATSAPP_INCOMING_WEBHOOK_SECRET_HEADER` | No | Header name used when sending a secret to n8n. Default is `x-webhook-secret`. |
 | `WHATSAPP_INCOMING_WEBHOOK_SECRET` | No | Secret value attached to inbound webhook calls sent to n8n. |
 | `WHATSAPP_ALLOW_LIST` | No | Comma-separated WhatsApp numbers allowed to trigger the inbound webhook. |
+| `INCOMING_WEBHOOK_RETRY_BASE_MS` | No | Base retry delay for the persistent inbound webhook delivery queue. Default is `2000`. |
+| `INCOMING_WEBHOOK_RETRY_MAX_MS` | No | Maximum retry delay for the persistent inbound webhook delivery queue. Default is `300000`. |
+| `INCOMING_WEBHOOK_MAX_ATTEMPTS` | No | Maximum delivery attempts before moving a payload to dead-letter storage. Default is `25`. |
+| `LOG_MAX_SIZE_MB` | No | Rotate `log/audit.log` and `log/console.log` after this size in MB. Default is `10`. |
 
 4. Start the service
 
@@ -177,7 +182,7 @@ http://localhost:3001/api/whatsapp/send
 
 ### Authentication
 
-If `N8N_API_KEY` is set in `.env`, n8n must include one of these headers:
+By default, n8n must include one of these headers:
 
 - `Authorization: Bearer <N8N_API_KEY>`
 - `x-api-key: <N8N_API_KEY>`
@@ -194,6 +199,8 @@ Example request headers:
 Content-Type: application/json
 Authorization: Bearer my-bridge-api-key
 ```
+
+If you intentionally want an open bridge API for local testing, set `ALLOW_UNAUTHENTICATED_API=true`. The app no longer disables auth silently when `N8N_API_KEY` is blank.
 
 For n8n HTTP Request, the bridge supports these body styles:
 
