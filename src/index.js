@@ -607,7 +607,7 @@ async function startWhatsApp() {
     emitWhatsAppState();
 
     try {
-        const { state, saveCreds } = await useMultiFileAuthState('auth_session');
+        const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, '../auth_session'));
         const { version } = await fetchLatestBaileysVersion().catch((error) => {
             console.error('Failed to fetch latest Baileys version:', error);
             return { version: [2, 3000, 1015901307] };
@@ -822,9 +822,6 @@ async function startWhatsApp() {
                 io.emit('inbound-message', payload);
 
                 if (!config.whatsappIncomingWebhookUrl) {
-                    void forwardIncomingMessage(payload).catch((error) => {
-                        console.error('Incoming webhook forwarding failed:', error);
-                    });
                     continue;
                 }
 
